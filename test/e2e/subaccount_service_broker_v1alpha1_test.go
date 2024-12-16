@@ -1,5 +1,3 @@
-//go:build e2e
-
 /*
 Copyright 2022 The Crossplane Authors.
 
@@ -26,7 +24,6 @@ import (
 
 	"github.com/crossplane-contrib/xp-testing/pkg/resources"
 	meta_api "github.com/sap/crossplane-provider-btp/apis"
-	"github.com/sap/crossplane-provider-btp/apis/account/v1alpha1"
 	res "sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
@@ -36,10 +33,7 @@ func Test_SubaccountServiceBroker_v1alpha1(t *testing.T) {
 	t.Skip("Requires a working service broker to test, won't be fully implemented until promoting to v1beta1, skipping test until then")
 	t.Parallel()
 
-	resource := resources.ResourceTestConfig{
-		Kind: "SubaccountServiceBroker",
-		Obj:  &v1alpha1.SubaccountServiceBroker{},
-	}
+	resource := resources.NewResourceTestConfig(nil, "SubaccountServiceBroker")
 
 	fB := features.New(resource.Kind)
 	fB.WithLabel("kind", resource.Kind)
