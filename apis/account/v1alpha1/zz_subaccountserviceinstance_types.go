@@ -35,10 +35,6 @@ type SubaccountServiceInstanceInitParameters struct {
 	// The name of the service instance.
 	Name *string `json:"name,omitempty" tf:"name,omitempty"`
 
-	// (String, Sensitive) The configuration parameters for the service instance.
-	// The configuration parameters for the service instance.
-	Parameters *string `json:"parameters,omitempty" tf:"parameters,omitempty"`
-
 	// (String) The ID of the service plan.
 	// The ID of the service plan.
 	ServiceplanID *string `json:"serviceplanId,omitempty" tf:"serviceplan_id,omitempty"`
@@ -80,10 +76,6 @@ type SubaccountServiceInstanceObservation struct {
 	// (String) The name of the service instance.
 	// The name of the service instance.
 	Name *string `json:"name,omitempty" tf:"name,omitempty"`
-
-	// (String, Sensitive) The configuration parameters for the service instance.
-	// The configuration parameters for the service instance.
-	Parameters *string `json:"parameters,omitempty" tf:"parameters,omitempty"`
 
 	// (String) The platform ID.
 	// The platform ID.
@@ -132,7 +124,7 @@ type SubaccountServiceInstanceParameters struct {
 	// (String, Sensitive) The configuration parameters for the service instance.
 	// The configuration parameters for the service instance.
 	// +kubebuilder:validation:Optional
-	Parameters *string `json:"parameters,omitempty" tf:"parameters,omitempty"`
+	ParametersSecretRef *v1.SecretKeySelector `json:"parametersSecretRef,omitempty" tf:"-"`
 
 	// (String) The ID of the service plan.
 	// The ID of the service plan.

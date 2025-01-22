@@ -2250,11 +2250,6 @@ func (in *SubaccountServiceInstanceInitParameters) DeepCopyInto(out *SubaccountS
 		*out = new(string)
 		**out = **in
 	}
-	if in.Parameters != nil {
-		in, out := &in.Parameters, &out.Parameters
-		*out = new(string)
-		**out = **in
-	}
 	if in.ServiceplanID != nil {
 		in, out := &in.ServiceplanID, &out.ServiceplanID
 		*out = new(string)
@@ -2369,11 +2364,6 @@ func (in *SubaccountServiceInstanceObservation) DeepCopyInto(out *SubaccountServ
 		*out = new(string)
 		**out = **in
 	}
-	if in.Parameters != nil {
-		in, out := &in.Parameters, &out.Parameters
-		*out = new(string)
-		**out = **in
-	}
 	if in.PlatformID != nil {
 		in, out := &in.PlatformID, &out.PlatformID
 		*out = new(string)
@@ -2456,9 +2446,9 @@ func (in *SubaccountServiceInstanceParameters) DeepCopyInto(out *SubaccountServi
 		*out = new(string)
 		**out = **in
 	}
-	if in.Parameters != nil {
-		in, out := &in.Parameters, &out.Parameters
-		*out = new(string)
+	if in.ParametersSecretRef != nil {
+		in, out := &in.ParametersSecretRef, &out.ParametersSecretRef
+		*out = new(v1.SecretKeySelector)
 		**out = **in
 	}
 	if in.ServiceplanID != nil {
