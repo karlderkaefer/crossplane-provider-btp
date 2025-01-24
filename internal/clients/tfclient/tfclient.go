@@ -3,6 +3,9 @@ package tfclient
 import (
 	"context"
 	"encoding/json"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
+	cisclient "github.com/sap/crossplane-provider-btp/internal/clients/cis"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -150,7 +153,7 @@ func TerraformSetupBuilderNoTracking(version, providerSource, providerVersion st
 }
 
 // NewInternalTfConnector creates a new internal Terraform connector, it does not have a callback handler, since those won't be managed by the controller manager
-func NewInternalTfConnector(client client.Client, resourceName string, gvk schema.GroupVersionKind) *tjcontroller.Connector {
+func NewInternalTfConnector(c client.Client, resourceName string, gvk schema.GroupVersionKind) *tjcontroller.Connector {
 	tfVersion := TF_VERSION_CALLBACK()
 	zl := zap.New(zap.UseDevMode(tfVersion.DebugLogs))
 	setupFn := TerraformSetupBuilderNoTracking(tfVersion.Version, tfVersion.ProviderSource, tfVersion.Providerversion)
@@ -159,7 +162,19 @@ func NewInternalTfConnector(client client.Client, resourceName string, gvk schem
 	provider := config.GetProvider()
 	eventHandler := handler.NewEventHandler(handler.WithLogger(log.WithValues("gvk", gvk)))
 
-	connector := tjcontroller.NewConnector(client, ws, setupFn,
+	//TODO: consider using own abstraction rather then MockClient
+	fakeClient := test.MockClient{MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+		//TODO: refactor to be callback passed from servicemanager controller
+		if secret, ok := obj.(*v1.Secret); ok {
+			if key.Name == cisclient.InternalParametersSecretName && key.Namespace == cisclient.InternalParametersSecretNS {
+				secret.Data = map[string][]byte{cisclient.InternalParametersSecretKey: []byte(`{"grantType":"clientCredentials"}`)}
+				return nil
+			}
+		}
+		return c.Get(ctx, key, obj)
+	}}
+
+	connector := tjcontroller.NewConnector(&fakeClient, ws, setupFn,
 		provider.Resources[resourceName],
 		tjcontroller.WithLogger(log),
 		tjcontroller.WithConnectorEventHandler(eventHandler),
