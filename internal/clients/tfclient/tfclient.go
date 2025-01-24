@@ -9,6 +9,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	ujconfig "github.com/crossplane/upjet/pkg/config"
 	tjcontroller "github.com/crossplane/upjet/pkg/controller"
 	"github.com/crossplane/upjet/pkg/controller/handler"
 	"github.com/crossplane/upjet/pkg/terraform"
@@ -47,6 +48,14 @@ var (
 		}
 	}
 )
+
+type TfEnvVersion struct {
+	Version         string
+	Providerversion string
+	ProviderSource  string
+
+	DebugLogs bool
+}
 
 // TerraformSetupBuilder builds Terraform a terraform.SetupFn function which
 // returns Terraform provider setup configuration
@@ -152,7 +161,9 @@ func TerraformSetupBuilderNoTracking(version, providerSource, providerVersion st
 	}
 }
 
-// NewInternalTfConnector creates a new internal Terraform connector, it does not have a callback handler, since those won't be managed by the controller manager
+// NewInternalTfConnector creates a new internal Terraform connector, which means a controller that is being called by
+// our own "hybrid" controllers rather than by the upject reconciler.
+// The main difference is that it does not contain tracking or async handling, since we need to be in full controller in that use case
 func NewInternalTfConnector(c client.Client, resourceName string, gvk schema.GroupVersionKind) *tjcontroller.Connector {
 	tfVersion := TF_VERSION_CALLBACK()
 	zl := zap.New(zap.UseDevMode(tfVersion.DebugLogs))
@@ -175,7 +186,8 @@ func NewInternalTfConnector(c client.Client, resourceName string, gvk schema.Gro
 	}}
 
 	connector := tjcontroller.NewConnector(&fakeClient, ws, setupFn,
-		provider.Resources[resourceName],
+		// we force UseAsync to false, since those controllers will be called directly by us
+		synchronousResource(provider.Resources, resourceName),
 		tjcontroller.WithLogger(log),
 		tjcontroller.WithConnectorEventHandler(eventHandler),
 	)
@@ -183,10 +195,9 @@ func NewInternalTfConnector(c client.Client, resourceName string, gvk schema.Gro
 	return connector
 }
 
-type TfEnvVersion struct {
-	Version         string
-	Providerversion string
-	ProviderSource  string
-
-	DebugLogs bool
+// synchronousResource returns a copy of the resource with the UseAsync field set to false
+func synchronousResource(resources map[string]*ujconfig.Resource, name string) *ujconfig.Resource {
+	r := resources[name]
+	r.UseAsync = false
+	return r
 }
