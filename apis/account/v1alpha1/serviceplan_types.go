@@ -11,12 +11,13 @@ import (
 
 // ServicePlanParameters are the configurable fields of a ServicePlan.
 type ServicePlanParameters struct {
-	ConfigurableField string `json:"configurableField"`
+	OfferingName string `json:"offeringName"`
+	PlanName     string `json:"planName"`
 }
 
 // ServicePlanObservation are the observable fields of a ServicePlan.
 type ServicePlanObservation struct {
-	ObservableField string `json:"observableField,omitempty"`
+	ServicePlanId string `json:"servicePlanId,omitempty"`
 }
 
 // A ServicePlanSpec defines the desired state of a ServicePlan.
