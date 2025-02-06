@@ -18,7 +18,6 @@ package serviceplan
 
 import (
 	"context"
-	"fmt"
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/sap/crossplane-provider-btp/internal/clients/servicemanager"
 
@@ -153,8 +152,8 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return errors.New(errNotServicePlan)
 	}
 
-	fmt.Printf("Deleting: %+v", cr)
-
+	// just gracefully acknowledge the deletion, since its READ-ONLY
+	cr.Status.SetConditions(xpv1.Deleting())
 	return nil
 }
 

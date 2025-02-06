@@ -43,10 +43,10 @@ func TestObserve(t *testing.T) {
 						return "", apiError
 					},
 				},
-				cr: servicePlan("offeringName", "planName", "", false),
+				cr: servicePlan("offeringName", "planName", ""),
 			},
 			want: want{
-				cr:  servicePlan("offeringName", "planName", "", false),
+				cr:  servicePlan("offeringName", "planName", ""),
 				err: apiError,
 			},
 		},
@@ -58,10 +58,10 @@ func TestObserve(t *testing.T) {
 						return "123", nil
 					},
 				},
-				cr: servicePlan("offeringName", "planName", "", false),
+				cr: servicePlan("offeringName", "planName", ""),
 			},
 			want: want{
-				cr: servicePlan("offeringName", "planName", "123", true),
+				cr: servicePlan("offeringName", "planName", "123", xpv1.Available()),
 				o: managed.ExternalObservation{
 					ResourceExists:    true,
 					ResourceUpToDate:  true,
@@ -90,8 +90,50 @@ func TestObserve(t *testing.T) {
 	}
 }
 
+func TestDelete(t *testing.T) {
+	type args struct {
+		cr *v1alpha1.ServicePlan
+	}
+
+	type want struct {
+		err error
+		cr  *v1alpha1.ServicePlan
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"SuccessfulDelete": {
+			reason: "Should just gracefully return",
+			args: args{
+				cr: servicePlan("offeringName", "planName", "123"),
+			},
+			want: want{
+				cr:  servicePlan("offeringName", "planName", "123", xpv1.Deleting()),
+				err: nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			e := external{}
+
+			err := e.Delete(context.Background(), tc.args.cr)
+
+			internal.VerifyTestError(t, tc.want.err, err)
+
+			if diff := cmp.Diff(tc.want.cr, tc.args.cr); diff != "" {
+				t.Errorf("\ne.Observe(): expected cr after operation -want, +got:\n%s\n", diff)
+			}
+		})
+	}
+}
+
 // servicePlan creates a ServicePlan object for testing with passed offeringName, PlanName and observed servicePlanId
-func servicePlan(offeringName, planName, servicePlanId string, available bool) *v1alpha1.ServicePlan {
+func servicePlan(offeringName, planName, servicePlanId string, conditions ...xpv1.Condition) *v1alpha1.ServicePlan {
 	sp := &v1alpha1.ServicePlan{
 		Spec: v1alpha1.ServicePlanSpec{
 			ForProvider: v1alpha1.ServicePlanParameters{
@@ -105,8 +147,8 @@ func servicePlan(offeringName, planName, servicePlanId string, available bool) *
 			},
 		},
 	}
-	if available {
-		sp.Status.SetConditions(xpv1.Available())
+	for _, cond := range conditions {
+		sp.Status.SetConditions(cond)
 	}
 	return sp
 }
