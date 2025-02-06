@@ -203,6 +203,48 @@ func (mg *ServiceManager) ResolveReferences(ctx context.Context, c client.Reader
 	return nil
 }
 
+// ResolveReferences of this ServicePlan.
+func (mg *ServicePlan) ResolveReferences(ctx context.Context, c client.Reader) error {
+	r := reference.NewAPIResolver(c, mg)
+
+	var rsp reference.ResolutionResponse
+	var err error
+
+	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
+		CurrentValue: mg.Spec.ForProvider.ServiceManagerSecret,
+		Extract:      ServiceManagerSecret(),
+		Reference:    mg.Spec.ForProvider.ServiceManagerRef,
+		Selector:     mg.Spec.ForProvider.ServiceManagerSelector,
+		To: reference.To{
+			List:    &ServiceManagerList{},
+			Managed: &ServiceManager{},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "mg.Spec.ForProvider.ServiceManagerSecret")
+	}
+	mg.Spec.ForProvider.ServiceManagerSecret = rsp.ResolvedValue
+	mg.Spec.ForProvider.ServiceManagerRef = rsp.ResolvedReference
+
+	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
+		CurrentValue: mg.Spec.ForProvider.ServiceManagerSecretNamespace,
+		Extract:      ServiceManagerSecretNamespace(),
+		Reference:    mg.Spec.ForProvider.ServiceManagerRef,
+		Selector:     mg.Spec.ForProvider.ServiceManagerSelector,
+		To: reference.To{
+			List:    &ServiceManagerList{},
+			Managed: &ServiceManager{},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "mg.Spec.ForProvider.ServiceManagerSecretNamespace")
+	}
+	mg.Spec.ForProvider.ServiceManagerSecretNamespace = rsp.ResolvedValue
+	mg.Spec.ForProvider.ServiceManagerRef = rsp.ResolvedReference
+
+	return nil
+}
+
 // ResolveReferences of this Subaccount.
 func (mg *Subaccount) ResolveReferences(ctx context.Context, c client.Reader) error {
 	r := reference.NewAPIResolver(c, mg)

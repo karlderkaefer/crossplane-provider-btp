@@ -21,6 +21,9 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/sap/crossplane-provider-btp/internal/clients/servicemanager"
+	"github.com/sap/crossplane-provider-btp/internal/tracking"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -39,21 +42,15 @@ import (
 )
 
 const (
-	errNotServicePlan = "managed resource is not a ServicePlan custom resource"
-	errTrackPCUsage   = "cannot track ProviderConfig usage"
-	errGetPC          = "cannot get ProviderConfig"
-	errGetCreds       = "cannot get credentials"
+	errNotServicePlan   = "managed resource is not a ServicePlan custom resource"
+	errTrackPCUsage     = "cannot track ProviderConfig usage"
+	errTrackRUsage      = "cannot track ResourceUsage"
+	errExtractSecretKey = "No Service Manager Secret Found"
+	errGetPC            = "cannot get ProviderConfig"
+	errGetCreds         = "cannot get servicemanager credentials"
 
 	errNewClient = "cannot create new Service"
 	errApiGet    = "cannot retrieve ServicePlanId from API"
-)
-
-// TODO: remove
-// A NoOpService does nothing.
-type NoOpService struct{}
-
-var (
-	newNoOpService = func(_ []byte) (interface{}, error) { return &NoOpService{}, nil }
 )
 
 // TODO: use default Setup
@@ -69,9 +66,9 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.ServicePlanGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
-			kube:         mgr.GetClient(),
-			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
-			newServiceFn: newNoOpService}),
+			kube:  mgr.GetClient(),
+			usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
+		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		managed.WithConnectionPublishers(cps...))
@@ -84,31 +81,57 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
-// A connector is expected to produce an ExternalClient when its Connect method
-// is called.
 type connector struct {
-	kube         client.Client
-	usage        resource.Tracker
-	newServiceFn func(creds []byte) (interface{}, error)
+	kube  client.Client
+	usage resource.Tracker
+
+	resourcetracker     tracking.ReferenceResolverTracker
+	newPlanIdResolverFn func(ctx context.Context, secretData map[string][]byte) (servicemanager.PlanIdResolver, error)
 }
 
-// Connect typically produces an ExternalClient by:
-// 1. Tracking that the managed resource is using a ProviderConfig.
-// 2. Getting the managed resource's ProviderConfig.
-// 3. Getting the credentials specified by the ProviderConfig.
-// 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	_, ok := mg.(*v1alpha1.ServicePlan)
+	cr, ok := mg.(*v1alpha1.ServicePlan)
 	if !ok {
 		return nil, errors.New(errNotServicePlan)
 	}
 
-	return &external{}, nil
+	if err := c.usage.Track(ctx, mg); err != nil {
+		return nil, errors.Wrap(err, errTrackPCUsage)
+	}
+
+	if err := c.resourcetracker.Track(ctx, mg); err != nil {
+		return nil, errors.Wrap(err, errTrackRUsage)
+	}
+
+	if cr.Spec.ForProvider.ServiceManagerSecret == "" || cr.Spec.ForProvider.ServiceManagerSecretNamespace == "" {
+		return nil, errors.New(errExtractSecretKey)
+	}
+	secret := &corev1.Secret{}
+	if err := c.kube.Get(
+		ctx, types.NamespacedName{
+			Namespace: cr.Spec.ForProvider.ServiceManagerSecretNamespace,
+			Name:      cr.Spec.ForProvider.ServiceManagerSecret,
+		}, secret,
+	); err != nil {
+		return nil, errors.Wrap(err, errGetCreds)
+	}
+
+	sm, err := c.newPlanIdResolverFn(ctx, secret.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	return &external{
+		client:  sm,
+		tracker: c.resourcetracker,
+	}, nil
 }
 
 type external struct {
 	// we can reuse the existing interface and impl from the servicemanager package
 	client servicemanager.PlanIdResolver
+
+	tracker tracking.ReferenceResolverTracker
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
