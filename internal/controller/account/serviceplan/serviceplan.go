@@ -26,19 +26,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/pkg/errors"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/connection"
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/sap/crossplane-provider-btp/apis/account/v1alpha1"
-	apisv1alpha1 "github.com/sap/crossplane-provider-btp/apis/v1alpha1"
-	"github.com/sap/crossplane-provider-btp/internal/features"
 )
 
 const (
@@ -52,34 +45,6 @@ const (
 	errNewClient = "cannot create new Service"
 	errApiGet    = "cannot retrieve ServicePlanId from API"
 )
-
-// TODO: use default Setup
-// Setup adds a controller that reconciles ServicePlan managed resources.
-func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.ServicePlanGroupKind)
-
-	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
-	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), apisv1alpha1.StoreConfigGroupVersionKind))
-	}
-
-	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.ServicePlanGroupVersionKind),
-		managed.WithExternalConnecter(&connector{
-			kube:  mgr.GetClient(),
-			usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
-		}),
-		managed.WithLogger(o.Logger.WithValues("controller", name)),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		managed.WithConnectionPublishers(cps...))
-
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(name).
-		WithOptions(o.ForControllerRuntime()).
-		For(&v1alpha1.ServicePlan{}).
-		WithEventFilter(resource.DesiredStateChanged()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
-}
 
 type connector struct {
 	kube  client.Client
