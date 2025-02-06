@@ -19,6 +19,7 @@ package serviceplan
 import (
 	"context"
 	"fmt"
+	"github.com/sap/crossplane-provider-btp/internal/clients/servicemanager"
 
 	"github.com/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -43,8 +44,10 @@ const (
 	errGetCreds       = "cannot get credentials"
 
 	errNewClient = "cannot create new Service"
+	errApiGet    = "cannot retrieve ServicePlanId from API"
 )
 
+// TODO: remove
 // A NoOpService does nothing.
 type NoOpService struct{}
 
@@ -52,6 +55,7 @@ var (
 	newNoOpService = func(_ []byte) (interface{}, error) { return &NoOpService{}, nil }
 )
 
+// TODO: use default Setup
 // Setup adds a controller that reconciles ServicePlan managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := managed.ControllerName(v1alpha1.ServicePlanGroupKind)
@@ -101,12 +105,9 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	return &external{}, nil
 }
 
-// An ExternalClient observes, then either creates, updates, or deletes an
-// external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	// A 'client' used to connect to the external resource API. In practice this
-	// would be something like an AWS SDK client.
-	service interface{}
+	// we can reuse the existing interface and impl from the servicemanager package
+	client servicemanager.PlanIdResolver
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -115,22 +116,15 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotServicePlan)
 	}
 
-	// These fmt statements should be removed in the real implementation.
-	fmt.Printf("Observing: %+v", cr)
+	id, err := c.client.PlanIDByName(ctx, cr.Spec.ForProvider.OfferingName, cr.Spec.ForProvider.PlanName)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, errApiGet)
+	}
+	cr.Status.AtProvider.ServicePlanId = id
 
 	return managed.ExternalObservation{
-		// Return false when the external resource does not exist. This lets
-		// the managed resource reconciler know that it needs to call Create to
-		// (re)create the resource, or that it has successfully been deleted.
-		ResourceExists: true,
-
-		// Return false when the external resource exists, but it not up to date
-		// with the desired managed resource state. This lets the managed
-		// resource reconciler know that it needs to call Update.
-		ResourceUpToDate: true,
-
-		// Return any details that may be required to connect to the external
-		// resource. These will be stored as the connection secret.
+		ResourceExists:    true,
+		ResourceUpToDate:  true,
 		ConnectionDetails: managed.ConnectionDetails{},
 	}, nil
 }
