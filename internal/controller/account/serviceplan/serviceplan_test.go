@@ -2,6 +2,7 @@ package serviceplan
 
 import (
 	"context"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/pkg/errors"
 	"github.com/sap/crossplane-provider-btp/apis/account/v1alpha1"
 	"github.com/sap/crossplane-provider-btp/internal"
@@ -42,10 +43,10 @@ func TestObserve(t *testing.T) {
 						return "", apiError
 					},
 				},
-				cr: servicePlan("offeringName", "planName", ""),
+				cr: servicePlan("offeringName", "planName", "", false),
 			},
 			want: want{
-				cr:  servicePlan("offeringName", "planName", ""),
+				cr:  servicePlan("offeringName", "planName", "", false),
 				err: apiError,
 			},
 		},
@@ -57,10 +58,10 @@ func TestObserve(t *testing.T) {
 						return "123", nil
 					},
 				},
-				cr: servicePlan("offeringName", "planName", ""),
+				cr: servicePlan("offeringName", "planName", "", false),
 			},
 			want: want{
-				cr: servicePlan("offeringName", "planName", "123"),
+				cr: servicePlan("offeringName", "planName", "123", true),
 				o: managed.ExternalObservation{
 					ResourceExists:    true,
 					ResourceUpToDate:  true,
@@ -90,8 +91,8 @@ func TestObserve(t *testing.T) {
 }
 
 // servicePlan creates a ServicePlan object for testing with passed offeringName, PlanName and observed servicePlanId
-func servicePlan(offeringName, planName, servicePlanId string) *v1alpha1.ServicePlan {
-	return &v1alpha1.ServicePlan{
+func servicePlan(offeringName, planName, servicePlanId string, available bool) *v1alpha1.ServicePlan {
+	sp := &v1alpha1.ServicePlan{
 		Spec: v1alpha1.ServicePlanSpec{
 			ForProvider: v1alpha1.ServicePlanParameters{
 				OfferingName: offeringName,
@@ -104,4 +105,8 @@ func servicePlan(offeringName, planName, servicePlanId string) *v1alpha1.Service
 			},
 		},
 	}
+	if available {
+		sp.Status.SetConditions(xpv1.Available())
+	}
+	return sp
 }

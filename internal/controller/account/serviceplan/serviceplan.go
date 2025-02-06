@@ -19,6 +19,7 @@ package serviceplan
 import (
 	"context"
 	"fmt"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/sap/crossplane-provider-btp/internal/clients/servicemanager"
 
 	"github.com/pkg/errors"
@@ -120,8 +121,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errApiGet)
 	}
-	cr.Status.AtProvider.ServicePlanId = id
-	//TODO: add available()
+	setObservation(cr, id)
+	cr.Status.SetConditions(xpv1.Available())
 
 	return managed.ExternalObservation{
 		ResourceExists:    true,
@@ -155,4 +156,9 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	fmt.Printf("Deleting: %+v", cr)
 
 	return nil
+}
+
+// setObservation sets the observed state, which is the ServicePlanId in this case
+func setObservation(cr *v1alpha1.ServicePlan, id string) {
+	cr.Status.AtProvider.ServicePlanId = id
 }
