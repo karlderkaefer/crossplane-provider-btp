@@ -121,6 +121,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, errApiGet)
 	}
 	cr.Status.AtProvider.ServicePlanId = id
+	//TODO: add available()
 
 	return managed.ExternalObservation{
 		ResourceExists:    true,
@@ -130,33 +131,19 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.ServicePlan)
-	if !ok {
+	if _, ok := mg.(*v1alpha1.ServicePlan); !ok {
 		return managed.ExternalCreation{}, errors.New(errNotServicePlan)
 	}
 
-	fmt.Printf("Creating: %+v", cr)
-
-	return managed.ExternalCreation{
-		// Optionally return any details that may be required to connect to the
-		// external resource. These will be stored as the connection secret.
-		ConnectionDetails: managed.ConnectionDetails{},
-	}, nil
+	return managed.ExternalCreation{}, errors.New("Create() is not part of the ServicePlan controller")
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	cr, ok := mg.(*v1alpha1.ServicePlan)
-	if !ok {
+	if _, ok := mg.(*v1alpha1.ServicePlan); !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotServicePlan)
 	}
 
-	fmt.Printf("Updating: %+v", cr)
-
-	return managed.ExternalUpdate{
-		// Optionally return any details that may be required to connect to the
-		// external resource. These will be stored as the connection secret.
-		ConnectionDetails: managed.ConnectionDetails{},
-	}, nil
+	return managed.ExternalUpdate{}, errors.New("Update() is not part of the ServicePlan controller")
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
