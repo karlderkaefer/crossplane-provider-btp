@@ -19,6 +19,7 @@ package serviceplan
 import (
 	"context"
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/sap/crossplane-provider-btp/internal/clients/servicemanager"
 
 	"github.com/pkg/errors"
@@ -116,6 +117,14 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotServicePlan)
 	}
 
+	// gracefully acknowledge deletion by returning not found
+	if meta.WasDeleted(cr) {
+		return managed.ExternalObservation{
+			ResourceExists: false,
+		}, nil
+	}
+
+	// otherwise lookup and store the PlanId in observation
 	id, err := c.client.PlanIDByName(ctx, cr.Spec.ForProvider.OfferingName, cr.Spec.ForProvider.PlanName)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errApiGet)

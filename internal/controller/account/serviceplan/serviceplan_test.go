@@ -3,19 +3,20 @@ package serviceplan
 import (
 	"context"
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	"github.com/sap/crossplane-provider-btp/apis/account/v1alpha1"
 	"github.com/sap/crossplane-provider-btp/internal"
 	"github.com/sap/crossplane-provider-btp/internal/clients/servicemanager"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
-
-	"github.com/google/go-cmp/cmp"
 
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 )
 
 var (
-	apiError = errors.New("apiError")
+	apiError          = errors.New("apiError")
+	deletionTimestamp = meta.Now()
 )
 
 func TestObserve(t *testing.T) {
@@ -70,6 +71,25 @@ func TestObserve(t *testing.T) {
 				err: nil,
 			},
 		},
+		"AcknowledgeDeletion": {
+			reason: "CRs marked for deletion should be acknowledged as not found to unblock deletion",
+			args: args{
+				client: &servicemanager.PlanIdResolverFake{
+					PlanLookupMockFn: func() (string, error) {
+						// in this case we do not expect the client to be called, so we return an error here as a soft check for this
+						return "", errors.New("unexpected api call")
+					},
+				},
+				cr: withDeletionTimestamp(servicePlan("offeringName", "planName", "123", xpv1.Deleting())),
+			},
+			want: want{
+				cr: withDeletionTimestamp(servicePlan("offeringName", "planName", "123", xpv1.Deleting())),
+				o: managed.ExternalObservation{
+					ResourceExists: false,
+				},
+				err: nil,
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -108,10 +128,10 @@ func TestDelete(t *testing.T) {
 		"SuccessfulDelete": {
 			reason: "Should just gracefully return",
 			args: args{
-				cr: servicePlan("offeringName", "planName", "123"),
+				cr: withDeletionTimestamp(servicePlan("offeringName", "planName", "123")),
 			},
 			want: want{
-				cr:  servicePlan("offeringName", "planName", "123", xpv1.Deleting()),
+				cr:  withDeletionTimestamp(servicePlan("offeringName", "planName", "123", xpv1.Deleting())),
 				err: nil,
 			},
 		},
@@ -151,4 +171,10 @@ func servicePlan(offeringName, planName, servicePlanId string, conditions ...xpv
 		sp.Status.SetConditions(cond)
 	}
 	return sp
+}
+
+// withDeletionTimestamp sets the deletion timestamp on a ServicePlan, acts a modifier
+func withDeletionTimestamp(cr *v1alpha1.ServicePlan) *v1alpha1.ServicePlan {
+	cr.SetDeletionTimestamp(&deletionTimestamp)
+	return cr
 }
