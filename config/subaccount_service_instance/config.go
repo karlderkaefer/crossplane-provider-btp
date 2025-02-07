@@ -21,7 +21,21 @@ func Configure(p *config.Provider) {
 			}
 			return externalName, nil
 		}
-		// this prevents a callback to the manager, which makes integration of controller calls from within another controller easier
 		r.UseAsync = true
+
+		r.References["subaccount_id"] = config.Reference{
+			Type:              "github.com/sap/crossplane-provider-btp/apis/account/v1alpha1.Subaccount",
+			Extractor:         "github.com/sap/crossplane-provider-btp/apis/account/v1alpha1.SubaccountUuid()",
+			RefFieldName:      "SubaccountRef",
+			SelectorFieldName: "SubaccountSelector",
+		}
+
+		r.References["serviceplan_id"] = config.Reference{
+			Type:              "github.com/sap/crossplane-provider-btp/apis/account/v1alpha1.ServicePlan",
+			Extractor:         "github.com/sap/crossplane-provider-btp/apis/account/v1alpha1.ServicePlanId()",
+			RefFieldName:      "ServicePlanRef",
+			SelectorFieldName: "ServicePlanSelector",
+		}
+
 	})
 }
