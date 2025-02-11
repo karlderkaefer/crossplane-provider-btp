@@ -2,15 +2,18 @@ package wrappedserviceinstance
 
 import (
 	"context"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
 	"github.com/sap/crossplane-provider-btp/apis/account/v1alpha1"
+	"github.com/sap/crossplane-provider-btp/internal"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
+
+var apiError = errors.New("handler error")
 
 func TestObserve(t *testing.T) {
 	type args struct {
@@ -52,4 +55,66 @@ func TestObserve(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreate(t *testing.T) {
+	type args struct {
+		mg      resource.Managed
+		handler AsyncServiceInstanceHandler
+	}
+
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"handlerError": {
+			reason: "return error from handler to reconciler",
+			args: args{
+				mg: &v1alpha1.WrappedServiceInstance{},
+				handler: MockServiceInstanceHandler{
+					err: apiError,
+				},
+			},
+			want: want{
+				err: apiError,
+			},
+		},
+		"success": {
+			reason: "no error in case of success",
+			args: args{
+				mg: &v1alpha1.WrappedServiceInstance{},
+				handler: MockServiceInstanceHandler{
+					err: nil,
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			e := external{
+				instanceHandler: tc.args.handler,
+			}
+			_, err := e.Create(context.Background(), tc.args.mg)
+			internal.VerifyTestError(t, tc.want.err, err)
+		})
+	}
+}
+
+var _ AsyncServiceInstanceHandler = &MockServiceInstanceHandler{}
+
+type MockServiceInstanceHandler struct {
+	err error
+}
+
+func (m MockServiceInstanceHandler) CreateResource() error {
+	return m.err
 }
