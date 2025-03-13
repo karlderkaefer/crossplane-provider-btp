@@ -518,3 +518,45 @@ func (mg *Subscription) ResolveReferences(ctx context.Context, c client.Reader) 
 
 	return nil
 }
+
+// ResolveReferences of this WrappedServiceInstance.
+func (mg *WrappedServiceInstance) ResolveReferences(ctx context.Context, c client.Reader) error {
+	r := reference.NewAPIResolver(c, mg)
+
+	var rsp reference.ResolutionResponse
+	var err error
+
+	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
+		CurrentValue: reference.FromPtrValue(mg.Spec.ForProvider.ServiceplanID),
+		Extract:      ServicePlanId(),
+		Reference:    mg.Spec.ForProvider.ServicePlanRef,
+		Selector:     mg.Spec.ForProvider.ServicePlanSelector,
+		To: reference.To{
+			List:    &ServicePlanList{},
+			Managed: &ServicePlan{},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "mg.Spec.ForProvider.ServiceplanID")
+	}
+	mg.Spec.ForProvider.ServiceplanID = reference.ToPtrValue(rsp.ResolvedValue)
+	mg.Spec.ForProvider.ServicePlanRef = rsp.ResolvedReference
+
+	rsp, err = r.Resolve(ctx, reference.ResolutionRequest{
+		CurrentValue: reference.FromPtrValue(mg.Spec.ForProvider.SubaccountID),
+		Extract:      SubaccountUuid(),
+		Reference:    mg.Spec.ForProvider.SubaccountRef,
+		Selector:     mg.Spec.ForProvider.SubaccountSelector,
+		To: reference.To{
+			List:    &SubaccountList{},
+			Managed: &Subaccount{},
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "mg.Spec.ForProvider.SubaccountID")
+	}
+	mg.Spec.ForProvider.SubaccountID = reference.ToPtrValue(rsp.ResolvedValue)
+	mg.Spec.ForProvider.SubaccountRef = rsp.ResolvedReference
+
+	return nil
+}

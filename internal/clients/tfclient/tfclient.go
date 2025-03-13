@@ -3,23 +3,32 @@ package tfclient
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+
+	ctrl "sigs.k8s.io/controller-runtime"
+
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	cisclient "github.com/sap/crossplane-provider-btp/internal/clients/cis"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
 	ujconfig "github.com/crossplane/upjet/pkg/config"
 	tjcontroller "github.com/crossplane/upjet/pkg/controller"
 	"github.com/crossplane/upjet/pkg/controller/handler"
+	ujresource "github.com/crossplane/upjet/pkg/resource"
 	"github.com/crossplane/upjet/pkg/terraform"
 	"github.com/pkg/errors"
 	"github.com/sap/crossplane-provider-btp/apis/v1alpha1"
+
+	accountv1alpha1 "github.com/sap/crossplane-provider-btp/apis/account/v1alpha1"
 	"github.com/sap/crossplane-provider-btp/btp"
 	"github.com/sap/crossplane-provider-btp/config"
 	"github.com/sap/crossplane-provider-btp/internal/controller/providerconfig"
 	"github.com/sap/crossplane-provider-btp/internal/tracking"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -33,6 +42,9 @@ const (
 	errTrackRUsage                 = "cannot track ResourceUsage"
 	errGetServiceAccountCreds      = "cannot get Service Account credentials"
 	errCouldNotParseUserCredential = "error while parsing sa-provider-secret JSON"
+
+	errGetFmt          = "cannot get resource %s/%s after an async %s"
+	errUpdateStatusFmt = "cannot update status of the resource %s/%s after an async %s"
 )
 
 var (
@@ -200,4 +212,78 @@ func synchronousResource(resources map[string]*ujconfig.Resource, name string) *
 	r := resources[name]
 	r.UseAsync = false
 	return r
+}
+
+func NewInternalTfConnectorWithCustomCallback(mgr ctrl.Manager, resourceName string, gvk schema.GroupVersionKind) *tjcontroller.Connector {
+	tfVersion := TF_VERSION_CALLBACK()
+	zl := zap.New(zap.UseDevMode(tfVersion.DebugLogs))
+	setupFn := TerraformSetupBuilderNoTracking(tfVersion.Version, tfVersion.ProviderSource, tfVersion.Providerversion)
+	log := logging.NewLogrLogger(zl.WithName("crossplane-provider-btp"))
+	ws := terraform.NewWorkspaceStore(log)
+	provider := config.GetProvider()
+	eventHandler := handler.NewEventHandler(handler.WithLogger(log.WithValues("gvk", gvk)))
+
+	ac := &APICallbacks{crName: resourceName, kube: mgr.GetClient()}
+
+	//TODO: consider using own abstraction rather then MockClient
+	fakeClient := test.MockClient{MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+		//TODO: refactor to be callback passed from servicemanager controller
+		if secret, ok := obj.(*v1.Secret); ok {
+			if key.Name == cisclient.InternalParametersSecretName && key.Namespace == cisclient.InternalParametersSecretNS {
+				secret.Data = map[string][]byte{cisclient.InternalParametersSecretKey: []byte(`{"grantType":"clientCredentials"}`)}
+				return nil
+			}
+		}
+		return mgr.GetClient().Get(ctx, key, obj)
+	}}
+
+	connector := tjcontroller.NewConnector(&fakeClient, ws, setupFn,
+		// we force UseAsync to false, since those controllers will be called directly by us
+		provider.Resources[resourceName],
+		tjcontroller.WithLogger(log),
+		tjcontroller.WithConnectorEventHandler(eventHandler),
+		tjcontroller.WithCallbackProvider(ac),
+	)
+
+	return connector
+}
+
+type APICallbacks struct {
+	kube   client.Client
+	crName string
+}
+
+// Create makes sure the error is saved in async operation condition.
+func (ac *APICallbacks) Create(name string) terraform.CallbackFn {
+	return func(err error, ctx context.Context) error {
+		fmt.Println("CREATE CALLBACK FOR WrappedServiceInstance " + name)
+
+		wrappedServiceinstance := &accountv1alpha1.WrappedServiceInstance{}
+
+		nn := types.NamespacedName{Name: name}
+		if kErr := ac.kube.Get(ctx, nn, wrappedServiceinstance); kErr != nil {
+			return errors.Wrapf(kErr, errGetFmt, wrappedServiceinstance.GetObjectKind().GroupVersionKind().String(), name, "create")
+		}
+
+		wrappedServiceinstance.SetConditions(ujresource.LastAsyncOperationCondition(err))
+		wrappedServiceinstance.SetConditions(ujresource.AsyncOperationFinishedCondition())
+
+		uErr := ac.kube.Status().Update(ctx, wrappedServiceinstance)
+
+		return errors.Wrapf(uErr, errUpdateStatusFmt, wrappedServiceinstance.GetObjectKind().GroupVersionKind().String(), name, "create")
+	}
+}
+
+// Update makes sure the error is saved in async operation condition.
+func (ac *APICallbacks) Update(name string) terraform.CallbackFn {
+	return func(error, context.Context) error {
+		return nil
+	}
+}
+
+// Destroy makes sure the error is saved in async operation condition.
+func (ac *APICallbacks) Destroy(name string) terraform.CallbackFn {
+	return func(error, context.Context) error {
+		return nil
+	}
 }

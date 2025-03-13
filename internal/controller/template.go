@@ -5,6 +5,7 @@ import (
 	"github.com/sap/crossplane-provider-btp/internal/controller/account/directory"
 	"github.com/sap/crossplane-provider-btp/internal/controller/account/serviceplan"
 	"github.com/sap/crossplane-provider-btp/internal/controller/account/subscription"
+	"github.com/sap/crossplane-provider-btp/internal/controller/account/wrappedserviceinstance"
 	"github.com/sap/crossplane-provider-btp/internal/controller/oidc/kubeconfiggenerator"
 	"github.com/sap/crossplane-provider-btp/internal/controller/security/rolecollection"
 	"github.com/sap/crossplane-provider-btp/internal/controller/security/rolecollectionassignment"
@@ -40,6 +41,7 @@ func CustomSetup(mgr ctrl.Manager, o controller.Options) error {
 		rolecollectionassignment.Setup,
 		rolecollection.Setup,
 		serviceplan.Setup,
+		wrappedserviceinstance.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

@@ -27,7 +27,37 @@ import (
 
 // WrappedServiceInstanceParameters are the configurable fields of a WrappedServiceInstance.
 type WrappedServiceInstanceParameters struct {
-	ConfigurableField string `json:"configurableField"`
+	// Reference to a ServicePlan in account to populate serviceplanId.
+	// +kubebuilder:validation:Optional
+	ServicePlanRef *xpv1.Reference `json:"servicePlanRef,omitempty" tf:"-"`
+
+	// Selector for a ServicePlan in account to populate serviceplanId.
+	// +kubebuilder:validation:Optional
+	ServicePlanSelector *xpv1.Selector `json:"servicePlanSelector,omitempty" tf:"-"`
+
+	// (String) The ID of the service plan.
+	// The ID of the service plan.
+	// +crossplane:generate:reference:type=github.com/sap/crossplane-provider-btp/apis/account/v1alpha1.ServicePlan
+	// +crossplane:generate:reference:extractor=github.com/sap/crossplane-provider-btp/apis/account/v1alpha1.ServicePlanId()
+	// +crossplane:generate:reference:refFieldName=ServicePlanRef
+	// +crossplane:generate:reference:selectorFieldName=ServicePlanSelector
+	ServiceplanID *string `json:"serviceplanId,omitempty" tf:"serviceplan_id,omitempty"`
+
+	// (String) The ID of the subaccount.
+	// The ID of the subaccount.
+	// +crossplane:generate:reference:type=github.com/sap/crossplane-provider-btp/apis/account/v1alpha1.Subaccount
+	// +crossplane:generate:reference:extractor=github.com/sap/crossplane-provider-btp/apis/account/v1alpha1.SubaccountUuid()
+	// +crossplane:generate:reference:refFieldName=SubaccountRef
+	// +crossplane:generate:reference:selectorFieldName=SubaccountSelector
+	SubaccountID *string `json:"subaccountId,omitempty" tf:"subaccount_id,omitempty"`
+
+	// Reference to a Subaccount in account to populate subaccountId.
+	// +kubebuilder:validation:Optional
+	SubaccountRef *xpv1.Reference `json:"subaccountRef,omitempty" tf:"-"`
+
+	// Selector for a Subaccount in account to populate subaccountId.
+	// +kubebuilder:validation:Optional
+	SubaccountSelector *xpv1.Selector `json:"subaccountSelector,omitempty" tf:"-"`
 }
 
 // WrappedServiceInstanceObservation are the observable fields of a WrappedServiceInstance.
