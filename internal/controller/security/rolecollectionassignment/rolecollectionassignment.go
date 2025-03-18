@@ -154,18 +154,22 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	return managed.ExternalUpdate{}, errors.New(errNotImplemented)
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
 	cr, ok := mg.(*v1alpha1.RoleCollectionAssignment)
 	if !ok {
-		return errors.New(errNotRoleCollectionAssignment)
+		return managed.ExternalDelete{}, errors.New(errNotRoleCollectionAssignment)
 	}
 
 	cr.Status.SetConditions(xpv1.Deleting())
 	err := c.client.RevokeRole(ctx, cr.Spec.ForProvider.Origin, IdentifierName(cr), cr.Spec.ForProvider.RoleCollectionName)
 	if err != nil {
-		return errors.Wrap(err, errRevokeRole)
+		return managed.ExternalDelete{}, errors.Wrap(err, errRevokeRole)
 	}
 
+	return managed.ExternalDelete{}, nil
+}
+
+func (e *external) Disconnect(ctx context.Context) error {
 	return nil
 }
 

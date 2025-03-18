@@ -188,14 +188,18 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	return managed.ExternalUpdate{}, nil
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
 	cr, ok := mg.(*v1alpha1.CloudFoundryEnvironment)
 	if !ok {
-		return errors.New(errNotEnvironment)
+		return managed.ExternalDelete{}, errors.New(errNotEnvironment)
 	}
 	cr.SetConditions(xpv1.Deleting())
 
-	return c.client.DeleteInstance(ctx, *cr)
+	return managed.ExternalDelete{}, c.client.DeleteInstance(ctx, *cr)
+}
+
+func (e *external) Disconnect(ctx context.Context) error {
+	return nil
 }
 
 func (c *external) needsCreation(cr *v1alpha1.CloudFoundryEnvironment) bool {

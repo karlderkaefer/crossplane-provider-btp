@@ -2,8 +2,9 @@ package rolecollection
 
 import (
 	"context"
-	"github.com/sap/crossplane-provider-btp/internal"
 	"testing"
+
+	"github.com/sap/crossplane-provider-btp/internal"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -304,7 +305,7 @@ func TestDelete(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			e := external{client: tc.args.client}
-			err := e.Delete(context.Background(), tc.args.cr)
+			_, err := e.Delete(context.Background(), tc.args.cr)
 			if diff := cmp.Diff(tc.want.CalledIdentifier, tc.args.client.CalledIdentifier); diff != "" {
 				t.Errorf("\n%s\ne.Observe(...): -want, +CalledIdentifier:\n", diff)
 			}

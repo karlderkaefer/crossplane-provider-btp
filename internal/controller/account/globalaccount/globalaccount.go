@@ -129,17 +129,21 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	}, nil
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
 	cr, ok := mg.(*apisv1alpha1.GlobalAccount)
 	if !ok {
-		return errors.New(errNotGlobalAccount)
+		return managed.ExternalDelete{}, errors.New(errNotGlobalAccount)
 	}
 
 	c.tracker.SetConditions(ctx, cr)
 	if blocked := c.tracker.DeleteShouldBeBlocked(mg); blocked {
-		return errors.New(providerv1alpha1.ErrResourceInUse)
+		return managed.ExternalDelete{}, errors.New(providerv1alpha1.ErrResourceInUse)
 	}
 
 	cr.Status.SetConditions(xpv1.Deleting())
+	return managed.ExternalDelete{}, nil
+}
+
+func (e *external) Disconnect(ctx context.Context) error {
 	return nil
 }
