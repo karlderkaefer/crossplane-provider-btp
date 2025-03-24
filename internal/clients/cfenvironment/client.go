@@ -8,21 +8,22 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	provisioningclient "github.com/sap/crossplane-provider-btp/internal/openapi_clients/btp-provisioning-service-api-go/pkg"
 
-	"github.com/sap/crossplane-provider-btp/apis/environment/v1alpha1"
+	// "github.com/sap/crossplane-provider-btp/apis/environment/v1alpha1"
+	"github.com/sap/crossplane-provider-btp/apis/environment/v1beta1"
 	"github.com/sap/crossplane-provider-btp/internal"
 )
 
 type Client interface {
-	DescribeInstance(ctx context.Context, cr v1alpha1.CloudFoundryEnvironment) (
+	DescribeInstance(ctx context.Context, cr v1beta1.CloudFoundryEnvironment) (
 		*provisioningclient.EnvironmentInstanceResponseObject,
-		[]v1alpha1.User,
+		[]v1beta1.User,
 		error,
 	)
-	CreateInstance(ctx context.Context, cr v1alpha1.CloudFoundryEnvironment) error
-	UpdateInstance(ctx context.Context, cr v1alpha1.CloudFoundryEnvironment) error
-	DeleteInstance(ctx context.Context, cr v1alpha1.CloudFoundryEnvironment) error
+	CreateInstance(ctx context.Context, cr v1beta1.CloudFoundryEnvironment) error
+	UpdateInstance(ctx context.Context, cr v1beta1.CloudFoundryEnvironment) error
+	DeleteInstance(ctx context.Context, cr v1beta1.CloudFoundryEnvironment) error
 
-	NeedsUpdate(cr v1alpha1.CloudFoundryEnvironment) bool
+	NeedsUpdate(cr v1beta1.CloudFoundryEnvironment) bool
 }
 
 func ExternalName(environment *provisioningclient.EnvironmentInstanceResponseObject) *string {
@@ -33,7 +34,7 @@ func ExternalName(environment *provisioningclient.EnvironmentInstanceResponseObj
 	if err != nil {
 		return nil
 	}
-	orgnameb := details[v1alpha1.ResourceOrgName]
+	orgnameb := details[v1beta1.ResourceOrgName]
 	if orgnameb == nil {
 		return nil
 	}
@@ -43,9 +44,9 @@ func ExternalName(environment *provisioningclient.EnvironmentInstanceResponseObj
 
 func GenerateObservation(
 	environment *provisioningclient.EnvironmentInstanceResponseObject,
-	managers []v1alpha1.User,
-) v1alpha1.CfEnvironmentObservation {
-	observation := v1alpha1.CfEnvironmentObservation{}
+	managers []v1beta1.User,
+) v1beta1.CfEnvironmentObservation {
+	observation := v1beta1.CfEnvironmentObservation{}
 
 	if environment == nil {
 		return observation
@@ -98,17 +99,17 @@ func GetConnectionDetails(instance *provisioningclient.EnvironmentInstanceRespon
 		return managed.ConnectionDetails{}, err
 	}
 	details := managed.ConnectionDetails{
-		v1alpha1.ResourceRaw: []byte(label),
+		v1beta1.ResourceRaw: []byte(label),
 	}
 
 	if cflabels.OrgName != nil {
-		details[v1alpha1.ResourceOrgName] = []byte(*cflabels.OrgName)
+		details[v1beta1.ResourceOrgName] = []byte(*cflabels.OrgName)
 	}
 	if cflabels.OrgId != nil {
-		details[v1alpha1.ResourceOrgId] = []byte(*cflabels.OrgId)
+		details[v1beta1.ResourceOrgId] = []byte(*cflabels.OrgId)
 	}
 	if cflabels.ApiEndpoint != nil {
-		details[v1alpha1.ResourceAPIEndpoint] = []byte(*cflabels.ApiEndpoint)
+		details[v1beta1.ResourceAPIEndpoint] = []byte(*cflabels.ApiEndpoint)
 	}
 
 	return details, nil

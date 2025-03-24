@@ -293,10 +293,10 @@ func (c *Client) UpdateKymaEnvironment(ctx context.Context, environmentInstanceI
 
 func (c *Client) CreateCloudFoundryOrg(
 	ctx context.Context, instanceName string, serviceAccountEmail string, resourceUID string,
-	landscape string,
+	landscape string, orgname string,
 ) error {
 	parameters := map[string]interface{}{
-		cfenvironmentParameterInstanceName: instanceName, v1alpha1.SubaccountOperatorLabel: resourceUID,
+		cfenvironmentParameterInstanceName: orgname, v1alpha1.SubaccountOperatorLabel: resourceUID,
 	}
 	cloudFoundryPlanName := "standard"
 	envType := CloudFoundryEnvironmentType()
@@ -321,12 +321,12 @@ func (c *Client) CreateCloudFoundryOrg(
 }
 
 func (c *Client) CreateCloudFoundryOrgIfNotExists(
-	ctx context.Context, instanceName string, serviceAccountEmail string, resourceUID string,
-	landscape string,
+	ctx context.Context, metaName string, serviceAccountEmail string, resourceUID string,
+	landscape string, orgName string, instanceName string,
 ) error {
-	environmentId, err := c.getEnvironmentId(ctx, instanceName, CloudFoundryEnvironmentType())
+	environmentId, err := c.getEnvironmentId(ctx, metaName, orgName, CloudFoundryEnvironmentType())
 	if environmentId == "" {
-		err = c.CreateCloudFoundryOrg(ctx, instanceName, serviceAccountEmail, resourceUID, landscape)
+		err = c.CreateCloudFoundryOrg(ctx, instanceName, serviceAccountEmail, resourceUID, landscape, orgName)
 	}
 	return err
 }
@@ -339,8 +339,8 @@ func (c *Client) DeleteEnvironmentById(ctx context.Context, environmentId string
 	return nil
 }
 
-func (c *Client) DeleteEnvironment(ctx context.Context, instanceName string, environmentType EnvironmentType) error {
-	environmentId, getErr := c.getEnvironmentId(ctx, instanceName, environmentType)
+func (c *Client) DeleteEnvironment(ctx context.Context, instanceName string, orgName string, environmentType EnvironmentType) error {
+	environmentId, getErr := c.getEnvironmentId(ctx, instanceName, orgName, environmentType)
 	if getErr != nil {
 		return specifyAPIError(getErr)
 	}
@@ -376,10 +376,17 @@ func (c *Client) GetEnvironmentByNameAndType(
 		if err != nil {
 			return nil, err
 		}
+		// for old case where parameters.instance_name is equal to metadata.name
 		if parameterList[cfenvironmentParameterInstanceName] == instanceName {
 			environmentInstance = &instance
 			break
 		}
+
+		if CloudFoundryEnvironmentType() == environmentType && *instance.Name == instanceName {
+			environmentInstance = &instance
+			break
+		}
+
 		if parameterList[KymaenvironmentParameterInstanceName] == instanceName {
 			environmentInstance = &instance
 			break
@@ -388,10 +395,51 @@ func (c *Client) GetEnvironmentByNameAndType(
 	return environmentInstance, err
 }
 
-func (c *Client) getEnvironmentId(ctx context.Context, instanceName string, environmentType EnvironmentType) (
+func (c *Client) GetEnvironmentsByOrg(
+	ctx context.Context, metaName string, orgName string, environmentType EnvironmentType,
+) (*provisioningclient.EnvironmentInstanceResponseObject, error) {
+	var environmentInstance *provisioningclient.EnvironmentInstanceResponseObject
+	// additional Authorization param needs to be set != nil to avoid client blocking the call due to mandatory condition in specs
+	response, _, err := c.ProvisioningServiceClient.GetEnvironmentInstances(ctx).Authorization("").Execute()
+
+	if err != nil {
+		return nil, specifyAPIError(err)
+	}
+
+	for _, instance := range response.EnvironmentInstances {
+		if instance.EnvironmentType != nil && *instance.EnvironmentType != environmentType.Identifier {
+			continue
+		}
+
+		var parameters string
+		var parameterList map[string]interface{}
+		if instance.Parameters != nil {
+			parameters = *instance.Parameters
+		}
+		err := json.Unmarshal([]byte(parameters), &parameterList)
+		if err != nil {
+			return nil, err
+		}
+
+		// for old case where parameters.instance_name is equal to metadata.name
+		if parameterList[cfenvironmentParameterInstanceName] == metaName {
+			environmentInstance = &instance
+			break
+		}
+
+		if parameterList[cfenvironmentParameterInstanceName] == orgName {
+			environmentInstance = &instance
+			break
+		}
+
+	}
+	return environmentInstance, err
+}
+
+func (c *Client) getEnvironmentId(ctx context.Context, instanceName string, orgName string, environmentType EnvironmentType) (
 	string, error,
 ) {
-	environment, err := c.GetEnvironmentByNameAndType(ctx, instanceName, environmentType)
+	environment, err := c.GetEnvironmentsByOrg(ctx, instanceName, orgName, environmentType)
 	if err != nil {
 		return "", err
 	}

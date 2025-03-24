@@ -2,11 +2,18 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"os"
 	"path/filepath"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"flag"
+
 	tjcontroller "github.com/crossplane/upjet/pkg/controller"
+	"github.com/crossplane/upjet/pkg/controller/conversion"
 	"github.com/crossplane/upjet/pkg/terraform"
 	"github.com/sap/crossplane-provider-btp/btp"
 	"github.com/sap/crossplane-provider-btp/config"
@@ -15,6 +22,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -29,8 +37,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/sap/crossplane-provider-btp/apis"
+	// "github.com/sap/crossplane-provider-btp/apis/account/v1beta1"
 	"github.com/sap/crossplane-provider-btp/apis/v1alpha1"
 	template "github.com/sap/crossplane-provider-btp/internal/controller"
+
+	v1alpha1env "github.com/sap/crossplane-provider-btp/apis/environment/v1alpha1"
+	// v1beta1env "github.com/sap/crossplane-provider-btp/apis/environment/v1beta1"
+	// v1alpha1webhook "github.com/sap/crossplane-provider-btp/internal/webhook/v1alpha1"
+	// v1beta1webhook "github.com/sap/crossplane-provider-btp/internal/webhook/v1beta1"
 )
 
 func main() {
@@ -90,6 +104,48 @@ func main() {
 	cfg, err := ctrl.GetConfig()
 	kingpin.FatalIfError(err, "Cannot get API server rest config")
 
+	var webhookCertPath, webhookCertName, webhookCertKey string
+	flag.StringVar(&webhookCertPath, "webhook-cert-path", "/tmp/certs", "The directory that contains the webhook certificate.")
+	flag.StringVar(&webhookCertName, "webhook-cert-name", "webhook.crt", "The name of the webhook certificate file.")
+	flag.StringVar(&webhookCertKey, "webhook-cert-key", "webhook.key", "The name of the webhook key file.")
+
+	var tlsOpts []func(*tls.Config)
+	webhookTLSOpts := tlsOpts
+	var webhookCertWatcher *certwatcher.CertWatcher
+
+	if len(webhookCertPath) > 0 {
+
+		var err error
+		webhookCertWatcher, err = certwatcher.New(
+			filepath.Join(webhookCertPath, webhookCertName),
+			filepath.Join(webhookCertPath, webhookCertKey),
+		)
+		if err != nil {
+			os.Exit(1)
+		}
+
+		webhookTLSOpts = append(webhookTLSOpts, func(config *tls.Config) {
+			config.GetCertificate = webhookCertWatcher.GetCertificate
+		})
+		
+	}
+
+	// webhookTLSOpts = []func(*tls.Config){
+	// 	func(cfg *tls.Config) {
+	// 		// Load the certificate and key files
+	// 		cert, err := tls.LoadX509KeyPair("/tmp/certs/webhook.crt", "/tmp/certs/webhook.key")
+	// 		if err != nil {
+	// 			kingpin.FatalIfError(err, "Failed to load TLS certificate and key")
+	// 		}
+	// 		cfg.Certificates = []tls.Certificate{cert}
+	// 	},
+	// }
+
+	webhookServer := webhook.NewServer(webhook.Options{
+		TLSOpts: webhookTLSOpts,
+	})
+	
+
 	mgr, err := ctrl.NewManager(
 		ratelimiter.LimitRESTConfig(cfg, *maxReconcileRate), ctrl.Options{
 			Cache: cache.Options{SyncPeriod: syncInterval},
@@ -106,11 +162,39 @@ func main() {
 			LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 			LeaseDuration:              func() *time.Duration { d := 60 * time.Second; return &d }(),
 			RenewDeadline:              func() *time.Duration { d := 50 * time.Second; return &d }(),
+			WebhookServer:              webhookServer,
 		},
 	)
+
+
+	// ctrl.NewWebhookManagedBy(mgr).For(&v1alpha1env.CloudFoundryEnvironment{}).Complete()
+	// ctrl.NewWebhookManagedBy(mgr).For(&v1beta1env.CloudFoundryEnvironment{}).Complete()
+    
+	
+		// if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		// 	kingpin.FatalIfError(err, "Cannot run controller manager")
+		// 	os.Exit(1)
+		// }
 	kingpin.FatalIfError(err, "Cannot create controller manager")
 	kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add Template APIs to scheme")
-
+	gvk := schema.GroupVersionKind{
+		Group:   "environment.btp.sap.crossplane.io",
+		Version: "v1beta1",
+		Kind:    "CloudFoundryEnvironment",
+	}
+	//have to add the template.go to register v1beta1
+	if _, err := mgr.GetScheme().New(gvk); err != nil {
+		kingpin.FatalIfError(err, "not registered")
+	} else {
+		log.Info("registered")
+	}
+	if err := ctrl.NewWebhookManagedBy(mgr).For(&v1alpha1env.CloudFoundryEnvironment{}).Complete(); err != nil {
+		kingpin.FatalIfError(err, "Cannot run controller manager")
+	}
+	// if err := v1alpha1webhook.SetupCronJobWebhookWithManager(mgr); err != nil {
+	// 	kingpin.FatalIfError(err, "Failed to register webhook")
+	// }
+	// v1beta1webhook.SetupCronJobWebhookWithManager(mgr)
 	setupTerraformControllers(mgr, log, maxReconcileRate, *pollInterval, enableManagementPolicies, enableExternalSecretStores, namespace, terraformVersion, providerSource, providerVersion)
 	setupNativeControllers(mgr, log, maxReconcileRate, pollInterval, enableManagementPolicies, enableExternalSecretStores, namespace)
 
@@ -164,6 +248,8 @@ func setupTerraformControllers(mgr manager.Manager, log logging.Logger, maxRecon
 	}
 
 	kingpin.FatalIfError(template.Setup(mgr, o), "Cannot setup controllers")
+	conversion.RegisterConversions(o.Provider)
+	
 }
 func setupNativeControllers(mgr manager.Manager, log logging.Logger, maxReconcileRate *int, pollInterval *time.Duration, enableManagementPolicies *bool, enableExternalSecretStores *bool, namespace *string) {
 	co := controller.Options{

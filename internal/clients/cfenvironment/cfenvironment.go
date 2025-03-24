@@ -12,7 +12,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	provisioningclient "github.com/sap/crossplane-provider-btp/internal/openapi_clients/btp-provisioning-service-api-go/pkg"
 
-	"github.com/sap/crossplane-provider-btp/apis/environment/v1alpha1"
+	"github.com/sap/crossplane-provider-btp/apis/environment/v1beta1"
 	"github.com/sap/crossplane-provider-btp/btp"
 )
 
@@ -33,7 +33,7 @@ type CloudFoundryOrganization struct {
 	btp btp.Client
 }
 
-func (c CloudFoundryOrganization) NeedsUpdate(cr v1alpha1.CloudFoundryEnvironment) bool {
+func (c CloudFoundryOrganization) NeedsUpdate(cr v1beta1.CloudFoundryEnvironment) bool {
 	toAdd, toRemove := c.managerDiff(cr)
 	return len(toAdd) > 0 || len(toRemove) > 0
 }
@@ -44,10 +44,12 @@ func NewCloudFoundryOrganization(btp btp.Client) *CloudFoundryOrganization {
 
 func (c CloudFoundryOrganization) DescribeInstance(
 	ctx context.Context,
-	cr v1alpha1.CloudFoundryEnvironment,
-) (*provisioningclient.EnvironmentInstanceResponseObject, []v1alpha1.User, error) {
-	name := meta.GetExternalName(&cr)
-	environment, err := c.btp.GetEnvironmentByNameAndType(ctx, name, btp.CloudFoundryEnvironmentType())
+	cr v1beta1.CloudFoundryEnvironment,
+) (*provisioningclient.EnvironmentInstanceResponseObject, []v1beta1.User, error) {
+	externalName := meta.GetExternalName(&cr)
+
+	environment, err := c.btp.GetEnvironmentsByOrg(ctx, cr.Name, externalName, btp.CloudFoundryEnvironmentType())
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -91,7 +93,7 @@ func (c CloudFoundryOrganization) createClient(environment *provisioningclient.E
 	return cloudFoundryClient, err
 }
 
-func (c CloudFoundryOrganization) createClientWithType(environment *v1alpha1.CloudFoundryEnvironment) (
+func (c CloudFoundryOrganization) createClientWithType(environment *v1beta1.CloudFoundryEnvironment) (
 	*organizationClient,
 	error,
 ) {
@@ -107,21 +109,20 @@ func (c CloudFoundryOrganization) createClientWithType(environment *v1alpha1.Clo
 	return cloudFoundryClient, err
 }
 
-func (c CloudFoundryOrganization) CreateInstance(ctx context.Context, cr v1alpha1.CloudFoundryEnvironment) error {
-	cloudFoundryOrgName := cr.Name
+func (c CloudFoundryOrganization) CreateInstance(ctx context.Context, cr v1beta1.CloudFoundryEnvironment) error {
 
 	adminServiceAccountEmail := c.btp.Credential.UserCredential.Email
 
 	err := c.btp.CreateCloudFoundryOrgIfNotExists(
-		ctx, cloudFoundryOrgName, adminServiceAccountEmail, string(cr.UID),
-		cr.Spec.ForProvider.Landscape,
+		ctx, cr.Name, adminServiceAccountEmail, string(cr.UID),
+		cr.Spec.ForProvider.Landscape, meta.GetExternalName(&cr), cr.Spec.ForProvider.Name,
 	)
 
 	return errors.Wrap(err, instanceCreateFailed)
 }
 
-func (c CloudFoundryOrganization) DeleteInstance(ctx context.Context, cr v1alpha1.CloudFoundryEnvironment) error {
-	return c.btp.DeleteEnvironment(ctx, cr.Name, btp.CloudFoundryEnvironmentType())
+func (c CloudFoundryOrganization) DeleteInstance(ctx context.Context, cr v1beta1.CloudFoundryEnvironment) error {
+	return c.btp.DeleteEnvironment(ctx, cr.Name, meta.GetExternalName(&cr), btp.CloudFoundryEnvironmentType())
 }
 
 type organizationClient struct {
@@ -132,14 +133,14 @@ type organizationClient struct {
 }
 
 // managerDiff returns the users to add and to remove by comparing spec and status and ignoring credentials user email address
-func (c CloudFoundryOrganization) managerDiff(cr v1alpha1.CloudFoundryEnvironment) ([]v1alpha1.User, []v1alpha1.User) {
-	toAdd := make([]v1alpha1.User, 0)
-	toRemove := make([]v1alpha1.User, 0)
+func (c CloudFoundryOrganization) managerDiff(cr v1beta1.CloudFoundryEnvironment) ([]v1beta1.User, []v1beta1.User) {
+	toAdd := make([]v1beta1.User, 0)
+	toRemove := make([]v1beta1.User, 0)
 
 	ignoreUser := c.createdByUser()
 
 	for _, managerEmail := range cr.Spec.ForProvider.Managers {
-		manager := v1alpha1.User{Username: managerEmail}
+		manager := v1beta1.User{Username: managerEmail}
 		if !strings.EqualFold(ignoreUser.String(), manager.String()) && !containsUser(cr.Status.AtProvider.Managers, manager) {
 			toAdd = append(toAdd, manager)
 		}
@@ -155,11 +156,11 @@ func (c CloudFoundryOrganization) managerDiff(cr v1alpha1.CloudFoundryEnvironmen
 }
 
 // returns User from credentials to allow ignoring it in manager Updates (since its done on the API side)
-func (c CloudFoundryOrganization) createdByUser() v1alpha1.User {
+func (c CloudFoundryOrganization) createdByUser() v1beta1.User {
 	if c.btp.Credential == nil || c.btp.Credential.UserCredential == nil {
-		return v1alpha1.User{Username: "", Origin: defaultOrigin}
+		return v1beta1.User{Username: "", Origin: defaultOrigin}
 	}
-	return v1alpha1.User{Username: c.btp.Credential.UserCredential.Email, Origin: defaultOrigin}
+	return v1beta1.User{Username: c.btp.Credential.UserCredential.Email, Origin: defaultOrigin}
 }
 
 func (o organizationClient) addManager(ctx context.Context, username string, origin string) error {
@@ -226,7 +227,7 @@ func (o organizationClient) findUserGuidByName(ctx context.Context, username str
 
 }
 
-func (o organizationClient) getManagerUsernames(ctx context.Context) ([]v1alpha1.User, error) {
+func (o organizationClient) getManagerUsernames(ctx context.Context) ([]v1beta1.User, error) {
 	listOptions := cfv3.NewRoleListOptions()
 	listOptions.OrganizationGUIDs.EqualTo(o.orgGuid)
 	listOptions.WithOrganizationRoleType(resource.OrganizationRoleManager)
@@ -236,9 +237,9 @@ func (o organizationClient) getManagerUsernames(ctx context.Context) ([]v1alpha1
 		return nil, err
 	}
 
-	managers := make([]v1alpha1.User, 0)
+	managers := make([]v1beta1.User, 0)
 	for _, u := range users {
-		m := v1alpha1.User{
+		m := v1beta1.User{
 			Username: u.Username,
 			Origin:   u.Origin,
 		}
@@ -277,7 +278,7 @@ func newOrganizationClient(organizationName string, url string, orgId string, us
 	}, nil
 }
 
-func (c CloudFoundryOrganization) UpdateInstance(ctx context.Context, cr v1alpha1.CloudFoundryEnvironment) error {
+func (c CloudFoundryOrganization) UpdateInstance(ctx context.Context, cr v1beta1.CloudFoundryEnvironment) error {
 	toAdd, toRemove := c.managerDiff(cr)
 
 	if err := c.updateManagers(ctx, toAdd, toRemove, cr); err != nil {
@@ -287,9 +288,9 @@ func (c CloudFoundryOrganization) UpdateInstance(ctx context.Context, cr v1alpha
 }
 
 func (c CloudFoundryOrganization) updateManagers(ctx context.Context,
-	toAdd []v1alpha1.User,
-	toRemove []v1alpha1.User,
-	cr v1alpha1.CloudFoundryEnvironment,
+	toAdd []v1beta1.User,
+	toRemove []v1beta1.User,
+	cr v1beta1.CloudFoundryEnvironment,
 ) error {
 	cloudFoundryClient, err := c.createClientWithType(&cr)
 	if err != nil {
@@ -309,7 +310,7 @@ func (c CloudFoundryOrganization) updateManagers(ctx context.Context,
 	return nil
 }
 
-func containsUser(s []v1alpha1.User, e v1alpha1.User) bool {
+func containsUser(s []v1beta1.User, e v1beta1.User) bool {
 	for _, a := range s {
 		if strings.EqualFold(a.String(), e.String()) {
 			return true
@@ -318,10 +319,10 @@ func containsUser(s []v1alpha1.User, e v1alpha1.User) bool {
 	return false
 }
 
-func toUsers(users []string) []v1alpha1.User {
-	result := make([]v1alpha1.User, 0)
+func toUsers(users []string) []v1beta1.User {
+	result := make([]v1beta1.User, 0)
 	for _, u := range users {
-		result = append(result, v1alpha1.User{Username: u})
+		result = append(result, v1beta1.User{Username: u})
 	}
 	return result
 }

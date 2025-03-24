@@ -1,4 +1,4 @@
-package v1alpha1
+package v1beta1
 
 import (
 	"reflect"
@@ -7,8 +7,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	// "sigs.k8s.io/controller-runtime/pkg/conversion"
 )
-
 
 const (
 	InstanceStateOk       = "OK"
@@ -42,8 +42,6 @@ func (u *User) String() string {
 	return u.Username + " (" + u.Origin + ")"
 }
 
-
-
 // CfEnvironmentParameters are the configurable fields of a CloudFoundryEnvironment.
 type CfEnvironmentParameters struct {
 	// A list of users (with username/email and origin) to assign as the Org Manager role
@@ -57,10 +55,17 @@ type CfEnvironmentParameters struct {
 	Landscape string `json:"landscape,omitempty"`
 
 	// Org name of the Cloud Foundry environment
-	OrgName string `json:"orgName,omitempty"`
+	Org CFOrg `json:"org,omitempty"`
 
 	// CF environment instance name
 	Name string `json:"name,omitempty"`
+}
+
+type CFOrg struct {
+	// Org name of the Cloud Foundry environment
+	OrgName string `json:"orgName,omitempty"`
+	// Description of the Cloud Foundry environment
+	Description string `json:"description,omitempty"`
 }
 
 // CfEnvironmentObservation  are the observable fields of a CloudFoundryEnvironment.
@@ -120,6 +125,7 @@ type EnvironmentStatus struct {
 // +kubebuilder:printcolumn:name="EXTERNAL-NAME",type="string",JSONPath=".metadata.annotations.crossplane\\.io/external-name"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
+// +kubebuilder:storageversion
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,managed,sap}
 type CloudFoundryEnvironment struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -128,6 +134,8 @@ type CloudFoundryEnvironment struct {
 	Spec   CfEnvironmentSpec `json:"spec"`
 	Status EnvironmentStatus `json:"status,omitempty"`
 }
+// var _ conversion.Hub = &CloudFoundryEnvironment{}
+
 
 // +kubebuilder:object:root=true
 

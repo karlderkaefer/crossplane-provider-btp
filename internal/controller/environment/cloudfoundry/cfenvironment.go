@@ -13,7 +13,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/sap/crossplane-provider-btp/apis/environment/v1alpha1"
+	// "github.com/sap/crossplane-provider-btp/apis/environment/v1alpha1"
+	"github.com/sap/crossplane-provider-btp/apis/environment/v1beta1"
 	providerv1alpha1 "github.com/sap/crossplane-provider-btp/apis/v1alpha1"
 	env "github.com/sap/crossplane-provider-btp/internal/clients/cfenvironment"
 	"github.com/sap/crossplane-provider-btp/internal/tracking"
@@ -51,7 +52,7 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.CloudFoundryEnvironment)
+	cr, ok := mg.(*v1beta1.CloudFoundryEnvironment)
 	if !ok {
 		return nil, errors.New(errNotEnvironment)
 	}
@@ -109,10 +110,20 @@ type external struct {
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.CloudFoundryEnvironment)
+	cr, ok := mg.(*v1beta1.CloudFoundryEnvironment)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotEnvironment)
 	}
+	// orgName := cr.Spec.ForProvider.OrgName
+	// if orgName == "" {
+	// 	orgName = cr.Spec.SubaccountRef.Name + "_" + cr.Name
+	// }
+	orgName := cr.Spec.ForProvider.Org.OrgName
+	if orgName == "" {
+		orgName = cr.Spec.SubaccountRef.Name + "_" + cr.Name
+	}
+
+	meta.SetExternalName(cr, orgName)
 
 	instance, managers, err := c.client.DescribeInstance(ctx, *cr)
 	if err != nil {
@@ -120,7 +131,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 	cr.Status.AtProvider = env.GenerateObservation(instance, managers)
 
-	if cr.Status.AtProvider.State != nil && *cr.Status.AtProvider.State == v1alpha1.InstanceStateOk {
+	if cr.Status.AtProvider.State != nil && *cr.Status.AtProvider.State == v1beta1.InstanceStateOk {
 		externalName := env.ExternalName(instance)
 		if externalName != nil {
 			meta.SetExternalName(cr, *externalName)
@@ -152,7 +163,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.CloudFoundryEnvironment)
+	cr, ok := mg.(*v1beta1.CloudFoundryEnvironment)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotEnvironment)
 	}
@@ -170,7 +181,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	cr, ok := mg.(*v1alpha1.CloudFoundryEnvironment)
+	cr, ok := mg.(*v1beta1.CloudFoundryEnvironment)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotEnvironment)
 	}
@@ -189,7 +200,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
-	cr, ok := mg.(*v1alpha1.CloudFoundryEnvironment)
+	cr, ok := mg.(*v1beta1.CloudFoundryEnvironment)
 	if !ok {
 		return errors.New(errNotEnvironment)
 	}
@@ -198,6 +209,6 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	return c.client.DeleteInstance(ctx, *cr)
 }
 
-func (c *external) needsCreation(cr *v1alpha1.CloudFoundryEnvironment) bool {
+func (c *external) needsCreation(cr *v1beta1.CloudFoundryEnvironment) bool {
 	return cr.Status.AtProvider.State == nil
 }
