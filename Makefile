@@ -31,6 +31,10 @@ $(info VERSION is $(VERSION))
 
 GO_REQUIRED_VERSION=1.23
 
+# GOLANGCILINT_VERSION is inherited from build submodule by default.
+# Uncomment below if you need to override the version.
+GOLANGCILINT_VERSION ?= 1.64.8
+
 NPROCS ?= 1
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/provider
@@ -164,7 +168,7 @@ dev-debug: $(KIND) $(KUBECTL)
 	@$(KUBECTL) apply -R -f examples/provider
 	@$(INFO) Now you can debug the provider with the IDE...
 
-dev: $(KIND) $(KUBECTL) 
+dev: $(KIND) $(KUBECTL)
 	@$(INFO) Creating kind cluster
 	@$(KIND) create cluster --name=$(PROJECT_NAME)-dev
 	@$(KUBECTL) cluster-info --context kind-$(PROJECT_NAME)-dev
