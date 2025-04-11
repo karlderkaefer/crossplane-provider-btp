@@ -57,7 +57,7 @@ IMAGES = $(PROJECT_NAME) $(PROJECT_NAME)-controller
 
 export UUT_CONFIG = $(BUILD_REGISTRY)/$(subst crossplane-,crossplane/,$(PROJECT_NAME)):$(VERSION)
 export UUT_CONTROLLER = $(BUILD_REGISTRY)/$(subst crossplane-,crossplane/,$(PROJECT_NAME))-controller:$(VERSION)
-export UUT_IMAGES = {"crossplane/provider-btp":"$(UUT_CONFIG)","crossplane/provider-btp-controller":"$(UUT_CONTROLLER)"}
+export UUT_IMAGES = {"package":"$(UUT_CONFIG)","controller	":"$(UUT_CONTROLLER)"}
 testFilter ?= .*
 # NOTE(hasheddan): we force image building to happen prior to xpkg build so that
 # we ensure image is present in daemon.
@@ -237,14 +237,14 @@ test.run: go.test.unit
 # e2e tests
 e2e.run: test-acceptance
 
-test-e2e: $(KIND) $(HELM3) build generate-test-crs
+test-e2e: $(KIND) $(HELM3) build.all generate-test-crs
 	@$(INFO) running e2e tests
 	@$(INFO) Skipping long running tests
 	@UUT_CONFIG=$(BUILD_REGISTRY)/$(subst crossplane-,crossplane/,$(PROJECT_NAME)):$(VERSION) UUT_CONTROLLER=$(BUILD_REGISTRY)/$(subst crossplane-,crossplane/,$(PROJECT_NAME))-controller:$(VERSION) go test $(PROJECT_REPO)/test/... -tags=e2e -short -count=1 -timeout 30m
 	@$(OK) e2e tests passed
 
 
-test-e2e-long: $(KIND) $(HELM3) build generate-test-crs
+test-e2e-long: $(KIND) $(HELM3) build.all generate-test-crs
 	@$(INFO) running integration tests
 	@echo UUT_CONFIG=$$UUT_CONFIG
 	@echo UUT_CONTROLLER=$$UUT_CONTROLLER
@@ -253,7 +253,7 @@ test-e2e-long: $(KIND) $(HELM3) build generate-test-crs
 
 #run single e2e test with <make e2e testFilter=functionNameOfTest>
 .PHONY: test-acceptance
-test-acceptance: $(KIND) $(HELM3) build generate-test-crs
+test-acceptance: $(KIND) $(HELM3) build.all generate-test-crs
 	@$(INFO) running integration tests
 	@$(INFO) Skipping long running tests
 	@echo UUT_CONFIG=$$UUT_CONFIG
@@ -268,7 +268,7 @@ test-acceptance: $(KIND) $(HELM3) build generate-test-crs
      esac
 
 .PHONY: test-acceptance-debug
-test-acceptance-debug: $(KIND) $(HELM3) build generate-test-crs
+test-acceptance-debug: $(KIND) $(HELM3) build.all generate-test-crs
 	@$(INFO) running integration tests
 	@$(INFO) Skipping long running tests
 	@echo UUT_CONFIG=$$UUT_CONFIG
