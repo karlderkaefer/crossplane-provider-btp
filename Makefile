@@ -57,7 +57,7 @@ IMAGES = $(PROJECT_NAME) $(PROJECT_NAME)-controller
 
 export UUT_CONFIG = $(BUILD_REGISTRY)/$(subst crossplane-,crossplane/,$(PROJECT_NAME)):$(VERSION)
 export UUT_CONTROLLER = $(BUILD_REGISTRY)/$(subst crossplane-,crossplane/,$(PROJECT_NAME))-controller:$(VERSION)
-export UUT_IMAGES = {"package":"$(UUT_CONFIG)","controller	":"$(UUT_CONTROLLER)"}
+export UUT_IMAGES = {"package":"$(UUT_CONFIG)","controller":"$(UUT_CONTROLLER)"}
 testFilter ?= .*
 # NOTE(hasheddan): we force image building to happen prior to xpkg build so that
 # we ensure image is present in daemon.
