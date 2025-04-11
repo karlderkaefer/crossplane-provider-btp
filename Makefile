@@ -290,8 +290,8 @@ generate-test-crs:
 
 PUBLISH_IMAGES ?= crossplane/provider-btp crossplane/provider-btp-controller
 
-.PONY: publish
-publish:
+.PONY: publish-images
+publish-images:
 	@$(INFO) "Publishing images $(PUBLISH_IMAGES) to $(DOCKER_REGISTRY)"
 	@for image in $(PUBLISH_IMAGES); do \
 		echo "Publishing image $(DOCKER_REGISTRY)/$${image}:$(VERSION)"; \
