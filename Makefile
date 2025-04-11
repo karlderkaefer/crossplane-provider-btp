@@ -235,7 +235,7 @@ help-special: crossplane.help
 test.run: go.test.unit
 
 # e2e tests
-e2e.run: build.init test-acceptance
+e2e.run: build.all test-acceptance
 
 test-e2e: $(KIND) $(HELM3) build.all generate-test-crs
 	@$(INFO) running e2e tests
