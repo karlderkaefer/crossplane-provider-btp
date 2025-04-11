@@ -12,9 +12,9 @@ include ../../../build/makelib/imagelight.mk
 
 # ====================================================================================
 img.build:
-	@$(INFO) docker build $(IMAGE)
+	@$(INFO) docker build $(subst -$(ARCH),,$(IMAGE))
 	$(MAKE) img.build.shared
-	@$(OK) docker build $(IMAGE)
+	@$(OK) docker build $(subst -$(ARCH),,$(IMAGE))
 
 img.publish:
 	@$(INFO) Skipping image publish for $(IMAGE)
@@ -34,8 +34,8 @@ img.build.shared:
     		--build-arg TERRAFORM_NATIVE_PROVIDER_BINARY=$(TERRAFORM_NATIVE_PROVIDER_BINARY) \
     		--build-arg GIT_COMMIT="${COMMIT_HASH}" \
     		--build-arg BUILD_TIMESTAMP="$(TIME_LONG)" \
-    		-t $(IMAGE) \
-    		-t $(IMAGE):$(VERSION) \
+    		-t $(subst -$(ARCH),,$(IMAGE)) \
+    		-t $(subst -$(ARCH),,$(IMAGE)):$(VERSION) \
     		$(IMAGE_TEMP_DIR) || $(FAIL)
 
 img.promote:
