@@ -20,7 +20,7 @@ BUILD_ID ?= $(shell date +"%H%M%S")
 PLATFORMS ?= linux_amd64
 #get version from current git release tag
 VERSION := $(shell git describe --tags --exact-match 2>/dev/null || git rev-parse HEAD)
-$(info VERSION is $(VERSION))
+
 
 -include build/makelib/common.mk
 
