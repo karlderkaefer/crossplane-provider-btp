@@ -27,9 +27,9 @@ $(info VERSION is $(VERSION))
 # Setup Output
 -include build/makelib/output.mk
 
-# Setup Go
-
+# Setup Versions
 GO_REQUIRED_VERSION=1.23
+GOLANGCILINT_VERSION ?= 1.64.5
 
 # GOLANGCILINT_VERSION is inherited from build submodule by default.
 # Uncomment below if you need to override the version.
