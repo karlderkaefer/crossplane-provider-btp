@@ -1,11 +1,12 @@
 # ====================================================================================
 # Setup Project
-PROJECT_NAME := crossplane-provider-btp
-PROJECT_REPO := github.com/sap/$(PROJECT_NAME)
+PROVIDER_NAME := btp
+PROJECT_NAME := provider-$(PROVIDER_NAME)
+PROJECT_REPO := github.com/sap/crossplane-$(PROJECT_NAME)
 
 # Terraform Related variables
 export TERRAFORM_VERSION ?= 1.3.9
-
+export PROVIDER_NAME
 export TERRAFORM_PROVIDER_SOURCE ?= SAP/btp
 export TERRAFORM_PROVIDER_REPO ?= https://github.com/SAP/terraform-provider-btp
 export TERRAFORM_PROVIDER_VERSION ?= 1.7.0
@@ -18,6 +19,8 @@ export TERRAFORM_DOCS_PATH ?= docs/resources
 BUILD_ID ?= $(shell date +"%H%M%S")
 
 PLATFORMS ?= linux_amd64
+export PROJECT_NAME := $(PROJECT_NAME)
+
 #get version from current git release tag
 VERSION := $(shell git describe --tags --exact-match 2>/dev/null || git rev-parse HEAD)
 
@@ -51,8 +54,9 @@ KIND_NODE_IMAGE_TAG ?= v1.30.2
 -include build/makelib/k8s_tools.mk
 
 # Setup Images
-DOCKER_REGISTRY ?= crossplane
-IMAGES = $(PROJECT_NAME) $(PROJECT_NAME)-controller
+REGISTRY_ORGS ?= ghcr.io/sap/crossplane-provider-btp
+IMAGES = provider-btp provider-btp-controller
+BUILD_REGISTRY ?= build-$(shell echo $(HOSTNAME)-$(ROOT_DIR) | $(SHA256SUM) | cut -c1-8)/crossplane
 -include build/makelib/imagelight.mk
 
 export UUT_CONFIG = $(BUILD_REGISTRY)/$(PROJECT_NAME):$(VERSION)
