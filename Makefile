@@ -32,7 +32,7 @@ VERSION := $(shell git describe --tags --exact-match 2>/dev/null || git rev-pars
 
 # Setup Versions
 GO_REQUIRED_VERSION=1.23
-GOLANGCILINT_VERSION ?= 1.64.5
+GOLANGCILINT_VERSION ?= 1.64.8
 
 # GOLANGCILINT_VERSION is inherited from build submodule by default.
 # Uncomment below if you need to override the version.
