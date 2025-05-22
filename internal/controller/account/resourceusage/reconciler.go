@@ -33,11 +33,6 @@ const (
 	errUpdateStatus = "cannot update ResourceUsage status"
 )
 
-// Event reasons.
-const (
-	reasonAccount event.Reason = "UsageAccounting"
-)
-
 // Condition types and reasons.
 const (
 	TypeTerminating xpv1.ConditionType   = "Terminating"
@@ -138,11 +133,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPC)
 	}
 
-	log = log.WithValues(
-		"uid", ru.GetUID(),
-		"version", ru.GetResourceVersion(),
-		"name", ru.GetName(),
-	)
 	// check if target is still in place (on delete)
 	target, err := r.tracker.ResolveTarget(ctx, *ru)
 	if resource.IgnoreNotFound(err) != nil {
