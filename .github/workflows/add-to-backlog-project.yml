@@ -11,5 +11,5 @@ env:
 jobs:
   call-reusable-workflow:
     uses: openmcp-project/.github/.github/workflows/addRefinedIssuesToBacklog.yml@main
-    secrets: |
-            GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+    secrets: inherit
+    inputs: inherit
