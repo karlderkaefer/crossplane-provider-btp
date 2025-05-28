@@ -12,4 +12,3 @@ jobs:
   call-reusable-workflow:
     uses: openmcp-project/.github/.github/workflows/addRefinedIssuesToBacklog.yml@main
     secrets: inherit
-    inputs: inherit
