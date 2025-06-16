@@ -1,0 +1,53 @@
+name: Upgrade Test Workflow
+
+on:
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs:
+  upgrade-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Clone provider-upgrade-test repo
+        run: |
+          git clone https://github.tools.sap/cloud-orchestration/provider-upgrade-test.git
+          echo "Repository provider-upgrade-test cloned successfully."
+
+      - name: Install CLI Tools
+        run: |
+          echo "Installing Kind..."
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+          echo "Installing Kubectl..."
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+          echo "Installing Chainsaw..."
+          # Assuming Chainsaw is available from a URL or package manager.
+          # Replace the following command with the correct installation steps.
+          curl -Lo chainsaw https://example.com/chainsaw-linux-amd64
+          chmod +x chainsaw
+          sudo mv chainsaw /usr/local/bin/
+
+          echo "Installing sed..."
+          sudo apt-get update && sudo apt-get install -y sed
+
+          echo "Installing jq..."
+          sudo apt-get install -y jq
+
+          echo "Installing yq..."
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+
+          echo "All tools installed successfully."
+
+      - name: Run upgrade test
+        run: |
+          cd provider-upgrade-test
+          bash ./provider-test.sh -h
