@@ -1,0 +1,266 @@
+---
+sidebar_position: 1
+---
+
+import ManagedControlPlaneBadge from '@site/src/components/ManagedControlPlaneBadge.jsx';
+
+# Accounts, services, subscriptions
+
+Now that we have set up our providers and gained a first experiences with Crossplane, let's use our new skills to **orchestrate a complete use-case end-to-end**.
+
+![Big picture](/img/overview-orchestrate-service-all.png)
+
+## Intro
+
+To realize this use case, we
+
+- create an orchestrated Subaccount
+
+Inside of this Subaccount we
+
+- create an instance of Message Queuing service.
+
+In this Message Queuing instance we then
+
+- create a Queue
+- add 2 Queue topics
+
+In our Subaccount we
+- subscribe to Business Application Studio
+
+Applying these steps manually would cost us ~30 minutes of manual work for each environment we need.
+Most enterprise projects run in numerous development stages [dev, stage, prod, qa] and multiple regions.
+Hence, without automation we do not only waste lots of manual efforts but also increase the chances of introducing manual errors.
+
+## Install Providers
+
+We begin by installing the required Providers in our Control Plane.
+
+```yaml
+apiVersion: core.openmcp.cloud/v1alpha1
+kind: ManagedControlPlane
+metadata:
+  name: dev-mcp # Change that to your workspace name
+  namespace: project-onboarding-mcp--ws-dev # Change that to your workspace namespace
+spec:
+  desiredRegion:
+    name: europe
+    direction: central
+  components:
+    apiServer:
+      type: GardenerDedicated
+    crossplane:
+      version: 1.18.0
+      providers:
+        - name: btp
+          version: 1.0.2
+        # highlight-start
+        - name: message-queue
+          version: 1.0.1
+        # highlight-end
+...
+```
+
+## BTP Accounts
+
+Then, we describe our BTP accounts in code.
+
+:::note
+Make sure you have installed and authenticated with BTP Account Provider. If unsure, go back to section [Connect](/docs/sap-services/btp-services/account-managment/provider)
+:::
+
+```yaml
+apiVersion: account.btp.sap.crossplane.io/v1alpha1
+kind: GlobalAccount
+metadata:
+  name: my-global-account
+spec:
+  providerConfigRef:
+    name: account-provider-config
+---
+apiVersion: account.btp.sap.crossplane.io/v1alpha1
+kind: Subaccount
+metadata:
+  name: my-subaccount
+spec:
+  forProvider:
+    betaEnabled: true
+    description: my demo subaccount
+    displayName: my-orchestrated-subaccount
+    globalAccountRef:
+      name: my-global-account
+    region: us10
+    subaccountAdmins:
+      - johannes.ott@sap.com
+    subdomain: hello-orchest
+    usedForProduction: "NOT_USED_FOR_PRODUCTION"
+  providerConfigRef:
+    name: account-provider-config
+```
+
+## BTP Services
+
+Next, we can entitle the required services in our Subaccount, create an `ServiceInstance`. Also we create a corresponding `ServiceBinding` to further on initialize the newly created service with desired application content.
+
+:::note
+Make sure you have installed BTP Service Operator. If unsure, go back to section [Setup](/docs/sap-services/btp-services/account-managment/provider)
+:::
+
+```yaml
+apiVersion: account.btp.sap.crossplane.io/v1alpha1
+kind: Entitlement
+metadata:
+  name: msq-entitlement
+spec:
+  forProvider:
+    serviceName: message-queuing
+    servicePlanName: standard
+    amount: 1
+    subaccountRef:
+      name: my-subaccount
+  providerConfigRef:
+    name: account-provider-config
+---
+apiVersion: account.btp.sap.crossplane.io/v1beta1
+kind: ServiceManager
+metadata:
+  name: my-subaccount-service-manager
+spec:
+  writeConnectionSecretToRef:
+    name: sap-btp-service-operator
+    namespace: default
+  forProvider:
+    subaccountRef:
+      name: my-subaccount
+  providerConfigRef:
+    name: account-provider-config
+---
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceInstance
+metadata:
+  name: message-instance
+spec:
+  serviceOfferingName: message-queuing
+  servicePlanName: standard
+  parameters:
+    sourceIPs: 0.0.0.0/0
+    resources:
+      units: "100"
+---
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceBinding
+metadata:
+  name: my-msg-service-binding
+spec:
+  serviceInstanceName: message-instance
+  externalName: my-msg-service-binding
+  secretName: my-msg-service-binding-secret
+```
+
+:::caution Orchestrate multiple Subaccounts and Services
+
+Orchestrating BTP Subaccounts from one control plane is simple and straight forward.
+When considering **orchestrating their services through BTP-service-operator, please read [this guide](/docs/sap-services/btp-services/service-managment/multiple-subaccounts)**.
+
+:::
+
+### Message Queuing
+
+Now let's fill our Message Queuing service with content such as `Queues` and `Topics`.
+To enable the control plane to communicate with the newly created Message Queuing service, make sure its created `ServiceBinding` secret, matches the referenced secret in the `ProviderConfig`
+
+```yaml
+apiVersion: messagequeue.btp.orchestrate.cloud.sap/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: message-provider-config
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: default
+      name: my-msg-service-binding-secret
+      key: baseURL
+---
+apiVersion: messagequeue.btp.orchestrate.cloud.sap/v1alpha1
+kind: Queue
+metadata:
+  name: example
+spec:
+  forProvider:
+    configuration:
+      maxRedeliveryCount: 3
+      maxDeliveredUnackedMessagesPerFlow: 10000
+    topics:
+      - "topic-a"
+      - "topic-b"
+  providerConfigRef:
+    name: message-provider-config
+```
+## Watch tutorial
+
+<iframe width="440" height="300" src="https://video.sap.com/embed/secure/iframe/entryId/1_u2082q80/uiConfId/30317401/st/0" class="kmsembed" allowfullscreen webkitallowfullscreen mozAllowFullScreen allow="autoplay *; fullscreen *; encrypted-media *" referrerPolicy="no-referrer-when-downgrade" sandbox="allow-downloads allow-forms allow-same-origin allow-scripts allow-top-navigation allow-pointer-lock allow-popups allow-modals allow-orientation-lock allow-popups-to-escape-sandbox allow-presentation allow-top-navigation-by-user-activation" frameborder="0" title="BTP: End to End Demo"></iframe>
+
+
+## BTP Subscriptions
+
+Next, we orchestrate a `Subscription` to [`Business Application Studio`](https://www.sap.com/germany/products/technology-platform/business-application-studio.html).
+
+![overview](/img/overview-orchestrate-sunscription-all.png)
+
+To allow our provider to orchestrate this resource, a running instance of [`CloudManagement`](/docs/sap-services/btp-services/account-managment/cloudmanagement) is required as well as the desired [`Entitlements`](/browser/Providers/provider-btp/account.btp.sap.crossplane.io/entitlement/v1alpha1?view=examples) need to be set.
+
+```yaml
+apiVersion: account.btp.sap.crossplane.io/v1alpha1
+kind: Entitlement
+metadata:
+  name: cis-entitlement
+spec:
+  forProvider:
+    serviceName: cis
+    servicePlanName: local
+    enable: true
+    subaccountRef:
+      name: subaccount
+---
+apiVersion: account.btp.sap.crossplane.io/v1alpha1
+kind: Entitlement
+metadata:
+  name: bas-entitlement
+spec:
+  forProvider:
+    serviceName: sapappstudio
+    servicePlanName: standard-edition
+    enable: true
+    subaccountRef:
+      name: my-subaccount
+---
+apiVersion: account.btp.sap.crossplane.io/v1alpha1
+kind: CloudManagement
+metadata:
+  name: my-subaccount-cis
+spec:
+  writeConnectionSecretToRef:
+    name: cis-local
+    namespace: default
+  forProvider:
+    serviceManagerRef:
+      name: my-subaccount-service-manager
+    subaccountRef:
+      name: my-subaccount
+---
+apiVersion: account.btp.sap.crossplane.io/v1alpha1
+kind: Subscription
+metadata:
+  name: subscription-sapappstudio
+spec:
+  forProvider:
+    appName: sapappstudio
+    planName: standard-edition
+  cloudManagementRef:
+    name: my-subaccount-cis
+```
+
+## Wrap up
+That's it. We defined a complete end-to-end scenario using Crossplane. Adjust the values to your needs and replicate as often as you want. Never get lost again in environment drifts!
+
