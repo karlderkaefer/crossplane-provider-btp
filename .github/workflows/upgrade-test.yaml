@@ -1,8 +1,13 @@
 name: Upgrade Test Workflow
 
 on:
-  workflow_dispatch: # Allows manual triggering of the workflow
-
+  workflow_dispatch: 
+    inputs:
+      provider:
+        description: 'Provider to test'
+        required: true
+        default: 'aws'
+        
 jobs:
   upgrade-test:
     runs-on: ubuntu-latest
