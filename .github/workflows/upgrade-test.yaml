@@ -1,13 +1,10 @@
 name: Upgrade Test Workflow
 
 on:
-  workflow_dispatch: 
-    inputs:
-      provider:
-        description: 'Provider to test'
-        required: true
-        default: 'aws'
-        
+  push:
+    branches:
+      - upgradeTestPipeline
+
 jobs:
   upgrade-test:
     runs-on: ubuntu-latest
