@@ -15,7 +15,7 @@ jobs:
 
       - name: Clone provider-upgrade-test repo
         run: |
-          git clone https://${{ secrets.UPGRADE_TEST_GT_TOKEN }}github.tools.sap/cloud-orchestration/provider-upgrade-test.git
+          git clone https://${{ secrets.UPGRADE_TEST_GT_TOKEN }}@github.tools.sap/cloud-orchestration/provider-upgrade-test.git
           echo "Repository provider-upgrade-test cloned successfully."
 
       - name: Install CLI Tools
