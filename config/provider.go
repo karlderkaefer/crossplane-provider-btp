@@ -16,6 +16,8 @@ import (
 	servicebroker "github.com/sap/crossplane-provider-btp/config/subaccount_service_broker"
 	serviceinstance "github.com/sap/crossplane-provider-btp/config/subaccount_service_instance"
 	trustconfig "github.com/sap/crossplane-provider-btp/config/subaccount_trust_configuration"
+
+	tfprovider "github.com/SAP/terraform-provider-btp/btp/provider"
 )
 
 const (
@@ -31,10 +33,14 @@ var providerMetadata string
 
 // GetProvider returns provider configuration
 func GetProvider() *ujconfig.Provider {
+	p := tfprovider.New()
+
 	pc := ujconfig.NewProvider([]byte(providerSchema), resourcePrefix, modulePath, []byte(providerMetadata),
 		ujconfig.WithRootGroup("btp.sap.crossplane.io"),
 		ujconfig.WithIncludeList(ExternalNameConfigured()),
 		ujconfig.WithFeaturesPackage("internal/features"),
+		ujconfig.WithTerraformPluginFrameworkIncludeList(TerraformPluginFrameworkResourceList()),
+		ujconfig.WithTerraformPluginFrameworkProvider(p),
 		ujconfig.WithDefaultResourceOptions(
 			ExternalNameConfigurations(),
 		))
