@@ -12,6 +12,7 @@ import (
 	apicredentials "github.com/sap/crossplane-provider-btp/config/btp_subaccount_api_credential"
 	directoryentitlement "github.com/sap/crossplane-provider-btp/config/directory_entitlement"
 	globaltrustconfig "github.com/sap/crossplane-provider-btp/config/globalaccount_trust_configuration"
+	subaccount "github.com/sap/crossplane-provider-btp/config/subaccount"
 	servicebinding "github.com/sap/crossplane-provider-btp/config/subaccount_service_binding"
 	servicebroker "github.com/sap/crossplane-provider-btp/config/subaccount_service_broker"
 	serviceinstance "github.com/sap/crossplane-provider-btp/config/subaccount_service_instance"
@@ -54,6 +55,7 @@ func GetProvider() *ujconfig.Provider {
 		servicebinding.Configure,
 		servicebroker.Configure,
 		apicredentials.Configure,
+		subaccount.Configure,
 	} {
 		configure(pc)
 	}
