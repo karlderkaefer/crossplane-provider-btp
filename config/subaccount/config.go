@@ -8,8 +8,7 @@ import (
 func Configure(p *config.Provider) {
 	p.AddResourceConfigurator("btp_subaccount", func(r *config.Resource) {
 		r.ShortGroup = "account"
-		r.Kind = "TfSubaccount2"
-		r.Name = "TfSubaccount3"
+		r.Kind = "TfSubaccount"
 
 		r.UseAsync = true
 
