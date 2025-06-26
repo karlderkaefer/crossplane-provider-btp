@@ -1,5 +1,5 @@
-apiVersion: btp.btp.sap.crossplane.io/v1alpha1
-kind: Subaccount
+apiVersion: account.btp.sap.crossplane.io/v1alpha1
+kind: TfSubaccount
 metadata:
   name: test-12345
 spec:
