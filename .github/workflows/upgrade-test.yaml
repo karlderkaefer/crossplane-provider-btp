@@ -31,11 +31,11 @@ jobs:
           sudo mv kubectl /usr/local/bin/
 
           echo "Installing Chainsaw..."
-          # Assuming Chainsaw is available from a URL or package manager.
-          # Replace the following command with the correct installation steps.
-          curl -Lo chainsaw https://example.com/chainsaw-linux-amd64
-          chmod +x chainsaw
-          sudo mv chainsaw /usr/local/bin/
+          curl -LO https://github.com/kyverno/chainsaw/releases/download/v0.2.12/chainsaw_linux_amd64.tar.gz && \
+          tar -xzvf chainsaw_linux_amd64.tar.gz && \
+          chmod +x chainsaw && \
+          sudo mv chainsaw /usr/local/bin/chainsaw && \
+          chainsaw version
 
           echo "Installing sed..."
           sudo apt-get update && sudo apt-get install -y sed
