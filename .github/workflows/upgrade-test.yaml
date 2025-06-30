@@ -52,4 +52,11 @@ jobs:
       - name: Run upgrade test
         run: |
           cd provider-upgrade-test
-          bash ./provider-test.sh -h
+          echo "Running upgrade test..."
+           REGISTRY=ghcr.io/sap/crossplane-provider-btp/crossplane/provider-btp && ./provider-test.sh upgrade-test --source "${REGISTRY}:v1.1.0" --target ${REGISTRY}:v1.2.0 --provider provider-btp   --wait-user-input --initialize providers/provider-btp/scripts/initialize.sh 
+        env: 
+          CLIENT_ID: ${{ secrets.UPGRADE_TEST_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.UPGRADE_TEST_CLIENT_SECRET }}
+          TECH_USER_PASSWORD: ${{ secrets.UPGRADE_TEST_TECH_USER_PW }}
+
+          
