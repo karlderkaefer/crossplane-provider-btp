@@ -294,7 +294,7 @@ func (c *Client) UpdateKymaEnvironment(ctx context.Context, environmentInstanceI
 
 func (c *Client) CreateCloudFoundryOrg(
 	ctx context.Context, serviceAccountEmail string, resourceUID string,
-	landscape string, orgName string, environmentName string, 
+	landscape string, orgName string, environmentName string,
 ) (createdOrg string, err error) {
 	parameters := map[string]interface{}{
 		cfenvironmentParameterInstanceName: orgName, v1alpha1.SubaccountOperatorLabel: resourceUID,
@@ -328,7 +328,7 @@ func (c *Client) CreateCloudFoundryOrg(
 
 func (c *Client) CreateCloudFoundryOrgIfNotExists(
 	ctx context.Context, instanceName string, serviceAccountEmail string, resourceUID string,
-	landscape string, orgName string, environmentName string, 
+	landscape string, orgName string, environmentName string,
 ) (*CloudFoundryOrg, error) {
 	cfEnvironment, err := c.GetCFEnvironmentByNameAndOrg(ctx, instanceName, orgName)
 	if err != nil {
@@ -336,11 +336,11 @@ func (c *Client) CreateCloudFoundryOrgIfNotExists(
 	}
 	var orgId string
 	if cfEnvironment == nil {
-		orgId, err = c.CreateCloudFoundryOrg(ctx, serviceAccountEmail, resourceUID, landscape, orgName, environmentName,)
+		orgId, err = c.CreateCloudFoundryOrg(ctx, serviceAccountEmail, resourceUID, landscape, orgName, environmentName)
 		if err != nil {
 			return nil, err
 		}
-	}else{
+	} else {
 		orgId = *cfEnvironment.Id
 	}
 	cfOrg, err := c.GetCloudFoundryOrg(ctx, orgId)
@@ -363,8 +363,8 @@ func (c *Client) GetCloudFoundryOrg(
 func (c *Client) getCloudFoundryEnvironmentId(ctx context.Context, instanceName string, orgName string) (
 	string, error,
 ) {
-	environment, err:= c.GetCFEnvironmentByNameAndOrg(ctx, instanceName, orgName)
-	
+	environment, err := c.GetCFEnvironmentByNameAndOrg(ctx, instanceName, orgName)
+
 	if err != nil {
 		return "", err
 	}
@@ -395,9 +395,10 @@ func (c *Client) DeleteCloudFoundryEnvironment(ctx context.Context, instanceName
 	return nil
 }
 
-func (c *Client) GetEnvironmentByNameAndType(
-	ctx context.Context, instanceName string, environmentType EnvironmentType,
+func (c *Client) GetEnvironmentById(
+	ctx context.Context, Id string,
 ) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {
+
 	var environmentInstance *provisioningclient.BusinessEnvironmentInstanceResponseObject
 	// additional Authorization param needs to be set != nil to avoid client blocking the call due to mandatory condition in specs
 	response, _, err := c.ProvisioningServiceClient.GetEnvironmentInstances(ctx).Authorization("").Execute()
@@ -407,9 +408,6 @@ func (c *Client) GetEnvironmentByNameAndType(
 	}
 
 	for _, instance := range response.EnvironmentInstances {
-		if instance.EnvironmentType != nil && *instance.EnvironmentType != environmentType.Identifier {
-			continue
-		}
 
 		var parameters string
 		var parameterList map[string]interface{}
@@ -420,16 +418,14 @@ func (c *Client) GetEnvironmentByNameAndType(
 		if err != nil {
 			return nil, err
 		}
-		if parameterList[cfenvironmentParameterInstanceName] == instanceName {
+		if instance.Id != nil && *instance.Id == Id {
 			environmentInstance = &instance
 			break
 		}
-		if parameterList[KymaenvironmentParameterInstanceName] == instanceName {
-			environmentInstance = &instance
-			break
-		}
+
 	}
 	return environmentInstance, err
+
 }
 
 func (c *Client) GetCFEnvironmentByNameAndOrg(
@@ -462,12 +458,12 @@ func (c *Client) GetCFEnvironmentByNameAndOrg(
 		if parameterList[cfenvironmentParameterInstanceName] == orgName {
 			environmentInstance = &instance
 			break
-		}	
+		}
 	}
 	return environmentInstance, err
 }
 
-func (c *Client) GetCFEnvironmentByOrgId(ctx context.Context, orgId string) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error){
+func (c *Client) GetCFEnvironmentByOrgId(ctx context.Context, orgId string) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {
 	var environmentInstance *provisioningclient.BusinessEnvironmentInstanceResponseObject
 	// additional Authorization param needs to be set != nil to avoid client blocking the call due to mandatory condition in specs
 	envInstances, err := c.getCFEnvironments(ctx)
@@ -486,7 +482,7 @@ func (c *Client) GetCFEnvironmentByOrgId(ctx context.Context, orgId string) (*pr
 	return environmentInstance, err
 }
 
-func (c *Client) getCFEnvironments(ctx context.Context) ([]provisioningclient.BusinessEnvironmentInstanceResponseObject, error){
+func (c *Client) getCFEnvironments(ctx context.Context) ([]provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {
 	// additional Authorization param needs to be set != nil to avoid client blocking the call due to mandatory condition in specs
 	response, _, err := c.ProvisioningServiceClient.GetEnvironmentInstances(ctx).Authorization("").Execute()
 	if err != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -78,7 +79,15 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, errCantDescribe)
 	}
 
-	meta.SetExternalName(cr, *instance.Id)
+	guid := meta.GetExternalName(cr)
+
+	lateInitialized := false
+
+	// Update external_name if it is not set or different
+	if instance != nil && guid != ptr.Deref(instance.Id, "") {
+		meta.SetExternalName(cr, *instance.Id)
+		lateInitialized = true
+	}
 
 	lastModified := cr.Status.AtProvider.ModifiedDate
 	cr.Status.AtProvider = kymaenv.GenerateObservation(instance)
@@ -128,8 +137,9 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	return managed.ExternalObservation{
-		ResourceExists:   true,
-		ResourceUpToDate: true,
+		ResourceExists:          true,
+		ResourceUpToDate:        true,
+		ResourceLateInitialized: lateInitialized,
 	}, nil
 }
 

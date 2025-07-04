@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	"github.com/sap/crossplane-provider-btp/internal"
 	provisioningclient "github.com/sap/crossplane-provider-btp/internal/openapi_clients/btp-provisioning-service-api-go/pkg"
@@ -30,7 +31,7 @@ func (c KymaEnvironments) DescribeInstance(
 	ctx context.Context,
 	cr v1alpha1.KymaEnvironment,
 ) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {
-	environment, err := c.btp.GetEnvironmentByNameAndType(ctx, cr.Name, btp.KymaEnvironmentType())
+	environment, err := c.btp.GetEnvironmentById(ctx, meta.GetExternalName(&cr))
 	if err != nil {
 		return nil, err
 	}
