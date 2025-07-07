@@ -36,6 +36,63 @@ import (
 
 const kubeConfigData = "apiVersion: v1\nkind: Config\ncurrent-context: shoot--kyma-stage--c-5edf6ec\nclusters:\n- name: shoot--kyma-stage--c-5edf6ec\n  cluster:\n    certificate-authority-data: someCaData\n    server: someServerUrl\ncontexts:\n- name: shoot--kyma-stage--c-5edf6ec\n  context:\n    cluster: shoot--kyma-stage--c-5edf6ec\n    user: shoot--kyma-stage--c-5edf6ec\nusers:\n- name: shoot--kyma-stage--c-5edf6ec\n  user:\n    exec:\n      apiVersion: client.authentication.k8s.io/v1beta1\n      args:\n      - get-token\n      - \"--oidc-issuer-url=xxx\"\n      - \"--oidc-client-id=xxx\"\n      - \"--oidc-extra-scope=email\"\n      - \"--oidc-extra-scope=openid\"\n      command: kubectl-oidc_login\n      installHint: |\n        kubelogin plugin is required to proceed with authentication\n        # Homebrew (macOS and Linux)\n        brew install int128/kubelogin/kubelogin\n\n        # Krew (macOS, Linux, Windows and ARM)\n        kubectl krew install oidc-login\n\n        # Chocolatey (Windows)\n        choco install kubelogin\n"
 
+func TestCreate(t *testing.T) {
+	type args struct {
+		cr         resource.Managed
+		client     kyma.Client
+		httpClient *http.Client
+	}
+
+	type want struct {
+		o             managed.ExternalCreation
+		crCompareOpts []cmp.Option
+		cr            resource.Managed
+		err           error
+	}
+
+	var cases = map[string]struct {
+		args args
+		want want
+	}{
+		"SuccessfulCreate": {
+			args: args{
+				client: fake.MockClient{MockDescribeCluster: func(ctx context.Context, input *v1alpha1.KymaEnvironment) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {
+					return nil, nil
+				}},
+				cr: environment(),
+			},
+			want: want{
+				o:   managed.ExternalCreation{ConnectionDetails: managed.ConnectionDetails{}},
+				err: nil,
+				cr:  environment(withExternalName("")),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			e := external{client: tc.args.client, httpClient: http.DefaultClient, kube: test.NewMockClient()}
+			if tc.args.httpClient != nil {
+				e.httpClient = tc.args.httpClient
+			}
+			got, err := e.Create(context.Background(), tc.args.cr)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\ne.Observe(...): -want error, +got error:\n%s\n", diff)
+			}
+			opts := []cmp.Option{
+				test.EquateConditions(), cmpopts.IgnoreTypes(v1alpha1.KymaEnvironmentObservation{}),
+			}
+			opts = append(opts, tc.want.crCompareOpts...)
+
+			if diff := cmp.Diff(tc.want.cr, tc.args.cr, opts...); diff != "" {
+				t.Errorf("\ne.Observe(...): -want error, +got error:\n%s\n", diff)
+			}
+			if diff := cmp.Diff(tc.want.o, got, cmpopts.IgnoreFields(managed.ExternalObservation{}, "Diff")); diff != "" {
+				t.Errorf("\ne.Observe(...): -want, +got:\n%s\n", diff)
+			}
+		})
+	}
+
+}
 func TestObserve(t *testing.T) {
 	type args struct {
 		cr         resource.Managed
@@ -123,7 +180,7 @@ func TestObserve(t *testing.T) {
 						Parameters: internal.Ptr("{\"name\":\"kyma\"}"),
 					}, nil
 				}},
-				cr: environment(withUID("1234")),
+				cr: environment(withUID("1234"), withExternalName("1234")),
 			},
 			want: want{
 				o: managed.ExternalObservation{
@@ -132,7 +189,7 @@ func TestObserve(t *testing.T) {
 				},
 				crCompareOpts: []cmp.Option{ignoreCircuitBreakerStatus()},
 				err:           nil,
-				cr:            environment(withUID("1234"), withConditions(xpv1.Available())),
+				cr:            environment(withUID("1234"), withConditions(xpv1.Available()), withExternalName("1234")),
 			},
 		},
 		"AvailableWithConnectionDetails": {
@@ -372,7 +429,7 @@ func TestObserve(t *testing.T) {
 						State: internal.Ptr("CREATING"),
 					}, nil
 				}},
-				cr: environment(),
+				cr: environment(withExternalName("1234")),
 			},
 			want: want{
 				o: managed.ExternalObservation{
@@ -380,7 +437,7 @@ func TestObserve(t *testing.T) {
 					ResourceUpToDate: true,
 				},
 				err: nil,
-				cr:  environment(withConditions(xpv1.Creating())),
+				cr:  environment(withConditions(xpv1.Creating()), withExternalName("1234")),
 			},
 		},
 		"CircuitBreakerOn": {
@@ -703,6 +760,11 @@ func withKymaParameters(c v1alpha1.KymaEnvironmentParameters) environmentModifie
 }
 func withUID(uid types.UID) environmentModifier {
 	return func(r *v1alpha1.KymaEnvironment) { r.UID = uid }
+}
+func withExternalName(name string) environmentModifier {
+	return func(r *v1alpha1.KymaEnvironment) {
+		r.Annotations = map[string]string{"crossplane.io/external-name": name}
+	}
 }
 
 func withRetryStatus(retryStatus *v1alpha1.RetryStatus) environmentModifier {

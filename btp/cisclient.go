@@ -256,7 +256,7 @@ func ServiceClientFromSecret(cisSecret []byte, userSecret []byte) (Client, error
 	return NewServiceClientWithCisCredential(credential), nil
 }
 
-func (c *Client) CreateKymaEnvironment(ctx context.Context, instanceName string, planeName string, parameters InstanceParameters, resourceUID string, serviceAccountEmail string) error {
+func (c *Client) CreateKymaEnvironment(ctx context.Context, instanceName string, planeName string, parameters InstanceParameters, resourceUID string, serviceAccountEmail string) (string, error) {
 	envType := KymaEnvironmentType()
 	payload := provisioningclient.CreateEnvironmentInstanceRequestPayload{
 		Description:     internal.Ptr("created via crossplane-provider-btp-account"),
@@ -269,13 +269,13 @@ func (c *Client) CreateKymaEnvironment(ctx context.Context, instanceName string,
 		TechnicalKey:    nil,
 		User:            &serviceAccountEmail,
 	}
-	_, _, err := c.ProvisioningServiceClient.CreateEnvironmentInstance(ctx).CreateEnvironmentInstanceRequestPayload(payload).Execute()
+	obj, _, err := c.ProvisioningServiceClient.CreateEnvironmentInstance(ctx).CreateEnvironmentInstanceRequestPayload(payload).Execute()
 
 	if err != nil {
-		return specifyAPIError(err)
+		return "", specifyAPIError(err)
 	}
-	return nil
 
+	return *obj.Id, nil
 }
 
 func (c *Client) UpdateKymaEnvironment(ctx context.Context, environmentInstanceId string, planeName string, instanceParameters InstanceParameters, resourceUID string) error {

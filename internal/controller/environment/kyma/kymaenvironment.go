@@ -125,18 +125,9 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		}, nil
 	}
 
-	guid := meta.GetExternalName(cr)
-	lateInitialized := false
-
-	if instance != nil && guid != *instance.Id {
-		meta.SetExternalName(cr, *instance.Id)
-		lateInitialized = true
-	}
-
 	return managed.ExternalObservation{
-		ResourceExists:          true,
-		ResourceUpToDate:        true,
-		ResourceLateInitialized: lateInitialized,
+		ResourceExists:   true,
+		ResourceUpToDate: true,
 	}, nil
 }
 
@@ -150,10 +141,12 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotKymaEnvironment)
 	}
 
-	err := c.client.CreateInstance(ctx, *cr)
+	guid, err := c.client.CreateInstance(ctx, *cr)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
+
+	meta.SetExternalName(cr, guid)
 
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the
