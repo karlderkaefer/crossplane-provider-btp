@@ -21,8 +21,8 @@ func (c MockClient) DescribeInstance(ctx context.Context, cr v1alpha1.KymaEnviro
 ) {
 	return c.MockDescribeCluster(ctx, &cr)
 }
-func (c MockClient) CreateInstance(ctx context.Context, cr v1alpha1.KymaEnvironment) (string, error) {
-	return "", nil
+func (c MockClient) CreateInstance(ctx context.Context, cr v1alpha1.KymaEnvironment) error {
+	return nil
 }
 func (c MockClient) UpdateInstance(ctx context.Context, cr v1alpha1.KymaEnvironment) error {
 	return nil
