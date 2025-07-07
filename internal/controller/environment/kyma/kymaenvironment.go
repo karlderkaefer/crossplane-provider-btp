@@ -14,7 +14,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -79,16 +78,6 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, errCantDescribe)
 	}
 
-	guid := meta.GetExternalName(cr)
-
-	lateInitialized := false
-
-	// Update external_name if it is not set or different
-	if instance != nil && guid != ptr.Deref(instance.Id, "") {
-		meta.SetExternalName(cr, *instance.Id)
-		lateInitialized = true
-	}
-
 	lastModified := cr.Status.AtProvider.ModifiedDate
 	cr.Status.AtProvider = kymaenv.GenerateObservation(instance)
 
@@ -137,9 +126,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	return managed.ExternalObservation{
-		ResourceExists:          true,
-		ResourceUpToDate:        true,
-		ResourceLateInitialized: lateInitialized,
+		ResourceExists:   true,
+		ResourceUpToDate: true,
 	}, nil
 }
 
@@ -153,10 +141,12 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotKymaEnvironment)
 	}
 
-	err := c.client.CreateInstance(ctx, *cr)
+	guid, err := c.client.CreateInstance(ctx, *cr)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
+
+	meta.SetExternalName(cr, guid)
 
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the

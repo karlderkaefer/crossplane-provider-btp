@@ -20,7 +20,7 @@ type Client interface {
 		*provisioningclient.BusinessEnvironmentInstanceResponseObject,
 		error,
 	)
-	CreateInstance(ctx context.Context, cr v1alpha1.KymaEnvironment) error
+	CreateInstance(ctx context.Context, cr v1alpha1.KymaEnvironment) (string, error)
 	UpdateInstance(ctx context.Context, cr v1alpha1.KymaEnvironment) error
 	DeleteInstance(ctx context.Context, cr v1alpha1.KymaEnvironment) error
 }

@@ -43,12 +43,12 @@ func (c KymaEnvironments) DescribeInstance(
 	return environment, nil
 }
 
-func (c KymaEnvironments) CreateInstance(ctx context.Context, cr v1alpha1.KymaEnvironment) error {
+func (c KymaEnvironments) CreateInstance(ctx context.Context, cr v1alpha1.KymaEnvironment) (string, error) {
 
 	parameters, err := internal.UnmarshalRawParameters(cr.Spec.ForProvider.Parameters.Raw)
 	parameters = AddKymaDefaultParameters(parameters, cr.Name, string(cr.UID))
 	if err != nil {
-		return err
+		return "", err
 	}
 	err = c.btp.CreateKymaEnvironment(
 		ctx,
@@ -58,8 +58,10 @@ func (c KymaEnvironments) CreateInstance(ctx context.Context, cr v1alpha1.KymaEn
 		string(cr.UID),
 		c.btp.Credential.UserCredential.Email,
 	)
-
-	return errors.Wrap(err, errKymaInstanceCreateFailed)
+	if err == nil {
+		return string(cr.UID), nil
+	}
+	return "", errors.Wrap(err, errKymaInstanceCreateFailed)
 }
 
 func (c KymaEnvironments) DeleteInstance(ctx context.Context, cr v1alpha1.KymaEnvironment) error {
