@@ -193,7 +193,7 @@ func TestObserve(t *testing.T) {
 						Parameters: internal.Ptr("{\"name\":\"kyma\"}"),
 					}, nil
 				}},
-				cr: environment(withUID("1234"), withExternalName("1234")),
+				cr: environment(withUID("1234")),
 			},
 			want: want{
 				o: managed.ExternalObservation{
@@ -202,7 +202,7 @@ func TestObserve(t *testing.T) {
 				},
 				crCompareOpts: []cmp.Option{ignoreCircuitBreakerStatus()},
 				err:           nil,
-				cr:            environment(withUID("1234"), withConditions(xpv1.Available()), withExternalName("1234")),
+				cr:            environment(withUID("1234"), withConditions(xpv1.Available())),
 			},
 		},
 		"AvailableWithConnectionDetails": {
@@ -442,7 +442,7 @@ func TestObserve(t *testing.T) {
 						State: internal.Ptr("CREATING"),
 					}, nil
 				}},
-				cr: environment(withExternalName("1234")),
+				cr: environment(),
 			},
 			want: want{
 				o: managed.ExternalObservation{
@@ -450,7 +450,7 @@ func TestObserve(t *testing.T) {
 					ResourceUpToDate: true,
 				},
 				err: nil,
-				cr:  environment(withConditions(xpv1.Creating()), withExternalName("1234")),
+				cr:  environment(withConditions(xpv1.Creating())),
 			},
 		},
 		"CircuitBreakerOn": {
