@@ -54,17 +54,30 @@ func TestCreate(t *testing.T) {
 		args args
 		want want
 	}{
-		"SuccessfulCreate": {
+		"KymaAlreadyExists": {
 			args: args{
-				client: fake.MockClient{MockDescribeCluster: func(ctx context.Context, input *v1alpha1.KymaEnvironment) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {
-					return nil, nil
+				client: fake.MockClient{MockCreateCluster: func(ctx context.Context, input *v1alpha1.KymaEnvironment) (string, error) {
+					return "", errors.New("Could not create KymaEnvironment instance, it already exists")
 				}},
 				cr: environment(),
 			},
 			want: want{
+				o:   managed.ExternalCreation{},
+				err: errors.New("Could not create KymaEnvironment instance, it already exists"),
+				cr:  environment(),
+			},
+		},
+		"SuccessfulCreate": {
+			args: args{
+				client: fake.MockClient{MockCreateCluster: func(ctx context.Context, input *v1alpha1.KymaEnvironment) (string, error) {
+					return "1234", nil
+				}},
+				cr: environment(withExternalName("1234")),
+			},
+			want: want{
 				o:   managed.ExternalCreation{ConnectionDetails: managed.ConnectionDetails{}},
 				err: nil,
-				cr:  environment(withExternalName("")),
+				cr:  environment(withExternalName("1234")),
 			},
 		},
 	}
