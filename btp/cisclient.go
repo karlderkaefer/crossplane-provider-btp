@@ -395,6 +395,62 @@ func (c *Client) DeleteCloudFoundryEnvironment(ctx context.Context, instanceName
 	return nil
 }
 
+// First tries to get the environment by external name, if not found, it tries to get it by name and type
+func (c *Client) GetEnvironment(
+	ctx context.Context, Id string, instanceName string, environmentType EnvironmentType,
+) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {
+	// Try to get the environment by external name first
+	environmentInstance, err := c.GetEnvironmentById(ctx, Id)
+	if err != nil {
+		return nil, err
+	}
+
+	if environmentInstance != nil {
+		return environmentInstance, nil
+	}
+
+	// If not found by external name, try to get it by name and type
+	return c.GetEnvironmentByNameAndType(ctx, instanceName, environmentType)
+}
+
+// LEGACY function to get environment by name and type
+func (c *Client) GetEnvironmentByNameAndType(
+	ctx context.Context, instanceName string, environmentType EnvironmentType,
+) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {
+	var environmentInstance *provisioningclient.BusinessEnvironmentInstanceResponseObject
+	// additional Authorization param needs to be set != nil to avoid client blocking the call due to mandatory condition in specs
+	response, _, err := c.ProvisioningServiceClient.GetEnvironmentInstances(ctx).Authorization("").Execute()
+
+	if err != nil {
+		return nil, specifyAPIError(err)
+	}
+
+	for _, instance := range response.EnvironmentInstances {
+		if instance.EnvironmentType != nil && *instance.EnvironmentType != environmentType.Identifier {
+			continue
+		}
+
+		var parameters string
+		var parameterList map[string]interface{}
+		if instance.Parameters != nil {
+			parameters = *instance.Parameters
+		}
+		err := json.Unmarshal([]byte(parameters), &parameterList)
+		if err != nil {
+			return nil, err
+		}
+		if parameterList[cfenvironmentParameterInstanceName] == instanceName {
+			environmentInstance = &instance
+			break
+		}
+		if parameterList[KymaenvironmentParameterInstanceName] == instanceName {
+			environmentInstance = &instance
+			break
+		}
+	}
+	return environmentInstance, err
+}
+
 func (c *Client) GetEnvironmentById(
 	ctx context.Context, Id string,
 ) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {

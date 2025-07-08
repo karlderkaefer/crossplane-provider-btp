@@ -16,7 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
@@ -141,12 +140,12 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotKymaEnvironment)
 	}
 
-	guid, err := c.client.CreateInstance(ctx, *cr)
+	_, err := c.client.CreateInstance(ctx, *cr)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 
-	meta.SetExternalName(cr, guid)
+	// meta.SetExternalName(cr, guid)
 
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the

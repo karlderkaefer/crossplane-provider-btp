@@ -31,7 +31,7 @@ func (c KymaEnvironments) DescribeInstance(
 	ctx context.Context,
 	cr v1alpha1.KymaEnvironment,
 ) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {
-	environment, err := c.btp.GetEnvironmentById(ctx, meta.GetExternalName(&cr))
+	environment, err := c.btp.GetEnvironment(ctx, meta.GetExternalName(&cr), cr.Name, btp.KymaEnvironmentType())
 	if err != nil {
 		return nil, err
 	}
