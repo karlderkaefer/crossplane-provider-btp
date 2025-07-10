@@ -72,7 +72,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotKymaEnvironment)
 	}
 
-	instance, err := c.client.DescribeInstance(ctx, *cr)
+	instance, hasUpdate, err := c.client.DescribeInstance(ctx, *cr)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errCantDescribe)
 	}
@@ -118,15 +118,17 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 			}, errors.Wrap(readErr, "can not obtain kubeConfig")
 		}
 		return managed.ExternalObservation{
-			ResourceExists:    true,
-			ResourceUpToDate:  true,
-			ConnectionDetails: details,
+			ResourceExists:          true,
+			ResourceUpToDate:        true,
+			ConnectionDetails:       details,
+			ResourceLateInitialized: hasUpdate,
 		}, nil
 	}
 
 	return managed.ExternalObservation{
-		ResourceExists:   true,
-		ResourceUpToDate: true,
+		ResourceExists:          true,
+		ResourceUpToDate:        true,
+		ResourceLateInitialized: hasUpdate,
 	}, nil
 }
 

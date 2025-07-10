@@ -400,7 +400,7 @@ func (c *Client) GetEnvironment(
 	ctx context.Context, Id string, instanceName string, environmentType EnvironmentType,
 ) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {
 	// Try to get the environment by external name first
-	environmentInstance, err := c.GetEnvironmentById(ctx, Id)
+	environmentInstance, err := c.GetEnvironmentById(ctx, instanceName)
 	if err != nil {
 		return nil, err
 	}
@@ -413,7 +413,7 @@ func (c *Client) GetEnvironment(
 	return c.GetEnvironmentByNameAndType(ctx, instanceName, environmentType)
 }
 
-// LEGACY function to get environment by name and type
+// Legacy function to get environment by name and type
 func (c *Client) GetEnvironmentByNameAndType(
 	ctx context.Context, instanceName string, environmentType EnvironmentType,
 ) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {
