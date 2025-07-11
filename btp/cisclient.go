@@ -48,7 +48,7 @@ func CloudFoundryEnvironmentType() EnvironmentType {
 type Client struct {
 	AccountsServiceClient     *accountsserviceclient.APIClient
 	EntitlementsServiceClient *entitlementsserviceclient.ManageAssignedEntitlementsAPIService
-	ProvisioningServiceClient *provisioningclient.EnvironmentsAPIService
+	ProvisioningServiceClient provisioningclient.EnvironmentsAPI
 	AuthInfo                  runtime.ClientAuthInfoWriter
 	Credential                *Credentials
 }
@@ -165,7 +165,7 @@ func createClient(credential *Credentials, config *clientcredentials.Config) Cli
 
 func createProvisioningServiceClient(
 	credential *Credentials, config *clientcredentials.Config,
-) *provisioningclient.EnvironmentsAPIService {
+) provisioningclient.EnvironmentsAPI {
 	provisioningServiceUrl, err := url.Parse(credential.CISCredential.Endpoints.ProvisioningServiceUrl)
 	if err != nil {
 		return nil
@@ -400,7 +400,7 @@ func (c *Client) GetEnvironment(
 	ctx context.Context, Id string, instanceName string, environmentType EnvironmentType,
 ) (*provisioningclient.BusinessEnvironmentInstanceResponseObject, error) {
 	// Try to get the environment by external name first
-	environmentInstance, err := c.GetEnvironmentById(ctx, instanceName)
+	environmentInstance, err := c.GetEnvironmentById(ctx, Id)
 	if err != nil {
 		return nil, err
 	}
