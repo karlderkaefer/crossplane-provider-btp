@@ -156,3 +156,11 @@ func hasPrefix(buf []byte, prefix []byte) bool {
 	trim := bytes.TrimLeftFunc(buf, unicode.IsSpace)
 	return bytes.HasPrefix(trim, prefix)
 }
+
+// stringPtrOrNil returns a pointer to the string if it's not empty, otherwise nil
+func StringPtrOrNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}

@@ -168,6 +168,7 @@ func isSynced(cr *v1alpha1.Directory, api *accountclient.DirectoryResponseObject
 	if providedDirectoryFeatures == nil {
 		providedDirectoryFeatures = []string{"DEFAULT"}
 	}
+
 	return cr.Spec.ForProvider.Description == api.Description &&
 		internal.Val(cr.Spec.ForProvider.DisplayName) == api.DisplayName &&
 		reflect.DeepEqual(cr.Spec.ForProvider.Labels, internal.Val(api.Labels)) &&
@@ -176,7 +177,7 @@ func isSynced(cr *v1alpha1.Directory, api *accountclient.DirectoryResponseObject
 
 func (d *DirectoryClient) toUpdateApiPayload() accountclient.UpdateDirectoryRequestPayload {
 	payload := accountclient.UpdateDirectoryRequestPayload{
-		Description: &d.cr.Spec.ForProvider.Description,
+		Description: internal.StringPtrOrNil(d.cr.Spec.ForProvider.Description),
 		DisplayName: d.cr.Spec.ForProvider.DisplayName,
 		Labels:      &d.cr.Spec.ForProvider.Labels,
 	}
@@ -199,7 +200,7 @@ func (d *DirectoryClient) toCreateApiPayload() accountclient.CreateDirectoryRequ
 		displayName = *d.cr.Spec.ForProvider.DisplayName
 	}
 	payload := accountclient.CreateDirectoryRequestPayload{
-		Description:       &d.cr.Spec.ForProvider.Description,
+		Description: 	   internal.StringPtrOrNil(d.cr.Spec.ForProvider.Description),
 		DirectoryAdmins:   d.cr.Spec.ForProvider.DirectoryAdmins,
 		DirectoryFeatures: d.cr.Spec.ForProvider.DirectoryFeatures,
 		DisplayName:       displayName,
