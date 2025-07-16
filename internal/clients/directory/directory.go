@@ -200,7 +200,7 @@ func (d *DirectoryClient) toCreateApiPayload() accountclient.CreateDirectoryRequ
 		displayName = *d.cr.Spec.ForProvider.DisplayName
 	}
 	payload := accountclient.CreateDirectoryRequestPayload{
-		Description: 	   internal.PtrIfNotEmpty(d.cr.Spec.ForProvider.Description),
+		Description:       internal.PtrIfNotEmpty(d.cr.Spec.ForProvider.Description),
 		DirectoryAdmins:   d.cr.Spec.ForProvider.DirectoryAdmins,
 		DirectoryFeatures: d.cr.Spec.ForProvider.DirectoryFeatures,
 		DisplayName:       displayName,

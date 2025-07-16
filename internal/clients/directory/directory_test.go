@@ -198,8 +198,8 @@ func TestNeedsUpdate(t *testing.T) {
 			reason: "changed description needs to be recognized as well",
 			args: args{
 				cachedAPI: &accountclient.DirectoryResponseObject{
-					DisplayName: "someName",
-					Description: "",
+					DisplayName:       "someName",
+					Description:       "",
 					DirectoryFeatures: []string{"DEFAULT"},
 				},
 				cr: testutils.NewDirectory("unittest-client",
@@ -217,8 +217,8 @@ func TestNeedsUpdate(t *testing.T) {
 			reason: "If actual and desired description is empty, we expect no update",
 			args: args{
 				cachedAPI: &accountclient.DirectoryResponseObject{
-					DisplayName: "someName",
-					Description: "",
+					DisplayName:       "someName",
+					Description:       "",
 					DirectoryFeatures: []string{"DEFAULT"},
 				},
 				cr: testutils.NewDirectory("unittest-client",
@@ -734,7 +734,7 @@ func TestDirectoryPayload(t *testing.T) {
 	type want struct {
 		create accountclient.CreateDirectoryRequestPayload
 		update accountclient.UpdateDirectoryRequestPayload
-		cr    resource.Managed
+		cr     resource.Managed
 	}
 	tests := map[string]struct {
 		reason string
@@ -766,9 +766,9 @@ func TestDirectoryPayload(t *testing.T) {
 					Labels:            &map[string][]string{"custom_label": {"custom_value"}},
 				},
 				update: accountclient.UpdateDirectoryRequestPayload{
-					Description:       nil,
-					Labels: 		  &map[string][]string{"custom_label": {"custom_value"}},
-					DisplayName: 	 internal.Ptr("created-from-unittest"),
+					Description: nil,
+					Labels:      &map[string][]string{"custom_label": {"custom_value"}},
+					DisplayName: internal.Ptr("created-from-unittest"),
 				},
 				cr: testutils.NewDirectory("unittest-client", testutils.WithData(v1alpha1.DirectoryParameters{
 					Description:       "",
@@ -777,7 +777,6 @@ func TestDirectoryPayload(t *testing.T) {
 					DisplayName:       internal.Ptr("created-from-unittest"),
 					Labels:            map[string][]string{"custom_label": {"custom_value"}},
 				}), testutils.WithExternalName("123")),
-
 			},
 		},
 	}
