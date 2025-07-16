@@ -223,35 +223,6 @@ func TestNeedsUpdate(t *testing.T) {
 					testutils.WithExternalName("aaaaaaaa-bbbb-cccc-eeee-ffffffffffff")),
 			},
 		},
-		"UpToDateEmptyDescription": {
-			reason: "Directory with empty description should be considered up-to-date when API also has empty description",
-			args: args{
-				cr: testutils.NewDirectory("unittest-client",
-					testutils.WithData(v1alpha1.DirectoryParameters{
-						Description: "", // Empty description
-						DisplayName: internal.Ptr("test-directory"),
-						Labels:      map[string][]string{"env": {"test"}},
-					}),
-					testutils.WithExternalName("aaaaaaaa-bbbb-cccc-eeee-ffffffffffff")),
-				mockClient: MockDirClient{
-					GetResult: &accountclient.DirectoryResponseObject{
-						Description:       "", // API also has empty description
-						DisplayName:       "test-directory",
-						Labels:            &map[string][]string{"env": {"test"}},
-						DirectoryFeatures: []string{"DEFAULT"},
-					}},
-			},
-			want: want{
-				o: false,
-				cr: testutils.NewDirectory("unittest-client",
-					testutils.WithData(v1alpha1.DirectoryParameters{
-						Description: "",
-						DisplayName: internal.Ptr("test-directory"),
-						Labels:      map[string][]string{"env": {"test"}},
-					}),
-					testutils.WithExternalName("aaaaaaaa-bbbb-cccc-eeee-ffffffffffff")),
-			},
-		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -523,48 +494,12 @@ func TestCreateDirectory(t *testing.T) {
 					testutils.WithExternalName("123")),
 			},
 		},
-		"SuccessWithoutDescription": {
-			reason: "Directory creation should succeed even without description (testing empty description handling)",
-			args: args{
-				mockClient: MockDirClient{
-					CreateResult: &accountclient.DirectoryResponseObject{
-						Guid: "456",
-					},
-				},
-				cr: testutils.NewDirectory("unittest-client", testutils.WithData(v1alpha1.DirectoryParameters{
-					Description:       "", // Empty description - should be omitted from API payload
-					DirectoryAdmins:   []string{"admin1@example.com", "admin2@example.com"},
-					DirectoryFeatures: []string{"DEFAULT"},
-					DisplayName:       internal.Ptr("directory-without-description"),
-					Labels:            map[string][]string{"env": {"test"}},
-				})),
-			},
-			want: want{
-				cr: testutils.NewDirectory("unittest-client", testutils.WithData(v1alpha1.DirectoryParameters{
-					Description:       "",
-					DirectoryAdmins:   []string{"admin1@example.com", "admin2@example.com"},
-					DirectoryFeatures: []string{"DEFAULT"},
-					DisplayName:       internal.Ptr("directory-without-description"),
-					Labels:            map[string][]string{"env": {"test"}},
-				}),
-					testutils.WithExternalName("456")),
-			},
-		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			btpClient := btp.Client{AccountsServiceClient: &accountclient.APIClient{DirectoryOperationsAPI: tc.args.mockClient}}
 
 			client := NewDirectoryClient(&btpClient, tc.args.cr)
-
-			// additional test required for empty description handling
-			if name == "SuccessWithoutDescription" {
-				payload := client.toCreateApiPayload()
-				if payload.Description != nil {
-					t.Errorf("\n%s\ntoCreateApiPayload(): Expected description to be nil for empty description but got %q\n", tc.reason, *payload.Description)
-				}
-			}
-
 			got, err := client.CreateDirectory(context.Background())
 
 			if diff := cmp.Diff(tc.want.cr, got); diff != "" {
@@ -781,6 +716,88 @@ func TestDeleteDirectory(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.DeleteDirectory(...): -want error, +got error:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestDirectoryPayload(t *testing.T) {
+	type args struct {
+		cr         *v1alpha1.Directory
+		mockClient MockDirClient
+	}
+	type want struct {
+		create accountclient.CreateDirectoryRequestPayload
+		update accountclient.UpdateDirectoryRequestPayload
+		cr    resource.Managed
+	}
+	tests := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Success": {
+			reason: "With successful API call we expect to succeed the operation",
+			args: args{
+				mockClient: MockDirClient{
+					CreateResult: &accountclient.DirectoryResponseObject{
+						Guid: "123",
+					},
+				},
+				cr: testutils.NewDirectory("unittest-client", testutils.WithData(v1alpha1.DirectoryParameters{
+					Description:       "",
+					DirectoryAdmins:   []string{"1@sap.com"},
+					DirectoryFeatures: []string{"DEFAULT"},
+					DisplayName:       internal.Ptr("created-from-unittest"),
+					Labels:            map[string][]string{"custom_label": {"custom_value"}},
+				})),
+			},
+			want: want{
+				create: accountclient.CreateDirectoryRequestPayload{
+					Description:       nil,
+					DirectoryAdmins:   []string{"1@sap.com"},
+					DirectoryFeatures: []string{"DEFAULT"},
+					DisplayName:       "created-from-unittest",
+					Labels:            &map[string][]string{"custom_label": {"custom_value"}},
+				},
+				update: accountclient.UpdateDirectoryRequestPayload{
+					Description:       nil,
+					Labels: 		  &map[string][]string{"custom_label": {"custom_value"}},
+					DisplayName: 	 internal.Ptr("created-from-unittest"),
+				},
+				cr: testutils.NewDirectory("unittest-client", testutils.WithData(v1alpha1.DirectoryParameters{
+					Description:       "",
+					DirectoryAdmins:   []string{"1@sap.com"},
+					DirectoryFeatures: []string{"DEFAULT"},
+					DisplayName:       internal.Ptr("created-from-unittest"),
+					Labels:            map[string][]string{"custom_label": {"custom_value"}},
+				}), testutils.WithExternalName("123")),
+
+			},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			btpClient := btp.Client{AccountsServiceClient: &accountclient.APIClient{DirectoryOperationsAPI: tc.args.mockClient}}
+
+			client := NewDirectoryClient(&btpClient, tc.args.cr)
+
+			createPayload := client.toCreateApiPayload()
+			updatePayload := client.toUpdateApiPayload()
+			got, _ := client.CreateDirectory(context.Background())
+
+			if diff := cmp.Diff(tc.want.create, createPayload); diff != "" {
+				t.Errorf("\n%s\ne.toCreateApiPayload(): -want, +got:\n%s\n", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.update, updatePayload); diff != "" {
+				t.Errorf("\n%s\ne.toUpdateApiPayload(): -want, +got:\n%s\n", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.cr, got); diff != "" {
+				t.Errorf("\n%s\ne.CreateDirectory(...): -want, +got:\n%s\n", tc.reason, diff)
+			}
+			// make sure changes have been applied to passed instance
+			if diff := cmp.Diff(tc.want.cr, tc.args.cr); diff != "" {
+				t.Errorf("\n%s\ne.CreateDirectory(...): -want cr, +got cr:\n%s\n", tc.reason, diff)
 			}
 		})
 	}
