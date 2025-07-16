@@ -194,6 +194,44 @@ func TestNeedsUpdate(t *testing.T) {
 					testutils.WithExternalName("aaaaaaaa-bbbb-cccc-eeee-ffffffffffff")),
 			},
 		},
+		"NeedsUpdateDescription": {
+			reason: "changed description needs to be recognized as well",
+			args: args{
+				cachedAPI: &accountclient.DirectoryResponseObject{
+					DisplayName: "someName",
+					Description: "",
+					DirectoryFeatures: []string{"DEFAULT"},
+				},
+				cr: testutils.NewDirectory("unittest-client",
+					testutils.WithData(v1alpha1.DirectoryParameters{DisplayName: internal.Ptr("someName"), Description: "new description"}),
+					testutils.WithExternalName("aaaaaaaa-bbbb-cccc-eeee-ffffffffffff")),
+			},
+			want: want{
+				o: true,
+				cr: testutils.NewDirectory("unittest-client",
+					testutils.WithData(v1alpha1.DirectoryParameters{DisplayName: internal.Ptr("someName"), Description: "new description"}),
+					testutils.WithExternalName("aaaaaaaa-bbbb-cccc-eeee-ffffffffffff")),
+			},
+		},
+		"UpToDateEmptyDescription": {
+			reason: "If actual and desired description is empty, we expect no update",
+			args: args{
+				cachedAPI: &accountclient.DirectoryResponseObject{
+					DisplayName: "someName",
+					Description: "",
+					DirectoryFeatures: []string{"DEFAULT"},
+				},
+				cr: testutils.NewDirectory("unittest-client",
+					testutils.WithData(v1alpha1.DirectoryParameters{DisplayName: internal.Ptr("someName"), Description: ""}),
+					testutils.WithExternalName("aaaaaaaa-bbbb-cccc-eeee-ffffffffffff")),
+			},
+			want: want{
+				o: false,
+				cr: testutils.NewDirectory("unittest-client",
+					testutils.WithData(v1alpha1.DirectoryParameters{DisplayName: internal.Ptr("someName"), Description: ""}),
+					testutils.WithExternalName("aaaaaaaa-bbbb-cccc-eeee-ffffffffffff")),
+			},
+		},
 		"UpToDateApiRequested": {
 			reason: "If there are no changes we expect to not require an update",
 			args: args{
@@ -375,39 +413,6 @@ func TestSyncStatus(t *testing.T) {
 					StateMessage:      internal.Ptr("Its great"),
 					Subdomain:         internal.Ptr("some-subdomain"),
 					DirectoryFeatures: []string{"DEFAULT", "ENTITLEMENTS"},
-				})),
-			},
-		},
-		"SetGUIDSuccessEmptyDescription": {
-			reason: "Expect to properly sync status when directory has empty description (testing empty description sync)",
-			args: args{
-				cr: testutils.NewDirectory("unittest-client", testutils.WithData(v1alpha1.DirectoryParameters{
-					Description:       "", // Empty description
-					DirectoryAdmins:   []string{"admin@example.com", "admin2@example.com"},
-					DirectoryFeatures: []string{"DEFAULT"},
-					DisplayName:       internal.Ptr("test-directory"),
-					Labels:            map[string][]string{"env": {"test"}},
-				})),
-				cachedApi: &accountclient.DirectoryResponseObject{
-					Guid:              "789",
-					Description:       "", // API also returns empty description
-					EntityState:       internal.Ptr("OK"),
-					StateMessage:      internal.Ptr("Directory created successfully"),
-					DirectoryFeatures: []string{"DEFAULT"},
-				},
-			},
-			want: want{
-				cr: testutils.NewDirectory("unittest-client", testutils.WithData(v1alpha1.DirectoryParameters{
-					Description:       "",
-					DirectoryAdmins:   []string{"admin@example.com", "admin2@example.com"},
-					DirectoryFeatures: []string{"DEFAULT"},
-					DisplayName:       internal.Ptr("test-directory"),
-					Labels:            map[string][]string{"env": {"test"}},
-				}), testutils.WithStatus(v1alpha1.DirectoryObservation{
-					Guid:              internal.Ptr("789"),
-					EntityState:       internal.Ptr("OK"),
-					StateMessage:      internal.Ptr("Directory created successfully"),
-					DirectoryFeatures: []string{"DEFAULT"},
 				})),
 			},
 		},
