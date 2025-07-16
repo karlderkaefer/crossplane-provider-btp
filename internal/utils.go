@@ -157,10 +157,12 @@ func hasPrefix(buf []byte, prefix []byte) bool {
 	return bytes.HasPrefix(trim, prefix)
 }
 
-// stringPtrOrNil returns a pointer to the string if it's not empty, otherwise nil
-func StringPtrOrNil(s string) *string {
-	if s == "" {
+// PtrIfNotEmpty returns a pointer to the value if it's not the zero value, otherwise nil
+func PtrIfNotEmpty[T comparable](v T) *T {
+	var zero T
+	if v == zero {
 		return nil
 	}
-	return &s
+	return &v
 }
+
