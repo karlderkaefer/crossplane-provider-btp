@@ -12,6 +12,7 @@ import (
 	"github.com/sap/crossplane-provider-btp/btp"
 	"github.com/sap/crossplane-provider-btp/internal"
 	accountclient "github.com/sap/crossplane-provider-btp/internal/openapi_clients/btp-accounts-service-api-go/pkg"
+	"k8s.io/utils/ptr"
 )
 
 const errMisUse = "can not request API without GUID"
@@ -169,7 +170,7 @@ func isSynced(cr *v1alpha1.Directory, api *accountclient.DirectoryResponseObject
 		providedDirectoryFeatures = []string{"DEFAULT"}
 	}
 
-	return cr.Spec.ForProvider.Description == api.Description &&
+	return cr.Spec.ForProvider.Description == ptr.Deref(api.Description, "") &&
 		internal.Val(cr.Spec.ForProvider.DisplayName) == api.DisplayName &&
 		reflect.DeepEqual(cr.Spec.ForProvider.Labels, internal.Val(api.Labels)) &&
 		reflect.DeepEqual(providedDirectoryFeatures, api.DirectoryFeatures)
